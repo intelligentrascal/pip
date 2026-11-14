@@ -1,0 +1,24 @@
+{
+  "source": "https://raw.githubusercontent.com/earendil-works/pi/main/packages/durable/README.md",
+  "capturedAt": "2026-11-06T09:33:58.380Z",
+  "addresses": [
+    {
+      "address": "185.199.111.133",
+      "family": 4
+    },
+    {
+      "address": "185.199.110.133",
+      "family": 4
+    },
+    {
+      "address": "185.199.109.133",
+      "family": 4
+    },
+    {
+      "address": "185.199.108.133",
+      "family": 4
+    }
+  ],
+  "contentType": "text/plain; charset=utf-8",
+  "body": "# @earendil-works/pi-durable\n\n> **Experimental.** The API changes without notice between releases.\n\nA durable agent harness. Conversations, model turns, tool calls, and your own state are committed to storage before anything is shown. If the process dies mid-turn, reopening the storage picks the work up where it stopped; a model request it died during counts as a failed attempt and is retried, so a request that keeps killing the process ends (see [Persist and Resume](#persist-and-resume))."
+}

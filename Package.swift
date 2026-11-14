@@ -1,0 +1,3 @@
+// swift-tools-version: 6.0
+import PackageDescription
+let package = Package(name: "PipCore", platforms: [.macOS(.v14)], products: [.library(name: "PipCore", targets: ["PipCore"])], targets: [.target(name: "PipCore", path: "native", exclude: ["Pip.swift", "NativeProbe.swift", "ChatGPTProbe.swift", "BackendWireProbe.swift", "OnDeviceDictation.swift"]), .executableTarget(name: "PipCoreChecks", dependencies: ["PipCore"], path: "tests/native"), .executableTarget(name: "PipDictationChecks", dependencies: ["PipCore"], path: "tests/dictation"), .executableTarget(name: "PipBackendFixture", dependencies: ["PipCore"], path: "tools/backend-fixture")])

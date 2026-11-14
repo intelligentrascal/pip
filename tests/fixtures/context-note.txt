@@ -1,0 +1,3 @@
+Pip window context check
+This is a disposable note for local preview and explicit sharing.
+No personal document is open.

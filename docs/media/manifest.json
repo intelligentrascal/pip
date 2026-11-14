@@ -1,0 +1,52 @@
+{
+  "schema": 1,
+  "credit": "intelligentrascal \u2014 Pip native demonstration",
+  "data": "Disposable automated demonstration with a real local save. No sign-in, key entry, provider Allow or AI request occurred. Not physical-keyboard proof.",
+  "processing": "Native own-window crops, neutral background, resize and shared GIF palette; no personal capture metadata.",
+  "rights": "Original text/code MIT; included painted artwork remains subject to assets/LICENSE.md and docs/ARTWORK.md. Exact-content publication approval is separate.",
+  "files": [
+    {
+      "file": "pip-window.png",
+      "sha256": "b02d1a2185ec8c6d03948852d02362afb2076de9b3a0a9bb617f6ac86d70b3aa",
+      "bytes": 319978,
+      "width": 960,
+      "height": 557,
+      "inspected": true
+    },
+    {
+      "file": "provider-settings.png",
+      "sha256": "2b0ebe598c97b6bc2fdfa79f15975b3fbea3366f41cc1e2968fa759a98ae3412",
+      "bytes": 429749,
+      "width": 960,
+      "height": 563,
+      "inspected": true
+    },
+    {
+      "file": "provider-allow.png",
+      "sha256": "b85186b13bd761a004565f0055c98fa665811bc4d5e6e8bb9de08c8aa2cb99d9",
+      "bytes": 1018218,
+      "width": 1008,
+      "height": 1123,
+      "inspected": true
+    },
+    {
+      "file": "remember-static.png",
+      "sha256": "2a9b321275ea91d4a422c1ea128bff58dc62be863fd87f708c2a373c79c575fa",
+      "bytes": 1118331,
+      "width": 1968,
+      "height": 1051,
+      "inspected": true
+    },
+    {
+      "file": "remember.gif",
+      "sha256": "241f6245bfd3641320d4d1ac2e538606cd0b13269419a0dc6907ffcb5a4e97bc",
+      "bytes": 892298,
+      "width": 960,
+      "height": 1046,
+      "inspected": true,
+      "frames": 53,
+      "durationMs": 9530,
+      "playsOnce": true
+    }
+  ]
+}

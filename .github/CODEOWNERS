@@ -1,0 +1,8 @@
+# Maintainer review for the source project and security-sensitive boundaries.
+* @intelligentrascal
+/.github/ @intelligentrascal
+/runtime/ @intelligentrascal
+/native/ @intelligentrascal
+/scripts/publication-export.py @intelligentrascal
+/publication-files.json @intelligentrascal
+/SECURITY.md @intelligentrascal

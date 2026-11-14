@@ -1,0 +1,6 @@
+:host{display:block;width:112px;height:132px;color:#F6EAD4;--ink:#142923;--brass:#E7BF78}
+   svg{width:112px;height:112px;overflow:visible} path{fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round}
+   .margin{stroke:var(--brass);stroke-dasharray:1;stroke-dashoffset:1}.writing{stroke-dasharray:1;stroke-dashoffset:1} .leaf{fill:var(--ink)} .seal{fill:var(--brass);stroke:none}
+   .label{font:12px/20px -apple-system,system-ui;text-align:center} .seal{visibility:hidden}
+   :host([data-state=done]) .seal{visibility:visible}
+   @media(prefers-reduced-motion:reduce){svg *{transition:none!important}}

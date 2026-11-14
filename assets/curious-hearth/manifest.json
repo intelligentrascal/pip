@@ -1,0 +1,526 @@
+{
+  "schema": 1,
+  "assetSet": "pip-curious-hearth",
+  "canvas": [
+    1024,
+    1024
+  ],
+  "targetPoints": 112,
+  "groups": {
+    "head": {
+      "parent": "root",
+      "pivot": [
+        625,
+        425
+      ]
+    },
+    "left-arm": {
+      "parent": "root",
+      "pivot": [
+        440,
+        492
+      ]
+    },
+    "right-arm": {
+      "parent": "root",
+      "pivot": [
+        697,
+        550
+      ]
+    }
+  },
+  "parts": {
+    "shoulder-backing": {
+      "file": "shoulder-backing.png",
+      "offset": [
+        418,
+        447
+      ],
+      "size": [
+        81,
+        78
+      ],
+      "pivot": [
+        450,
+        490
+      ],
+      "parent": "root"
+    },
+    "arm-left": {
+      "file": "arm-left.png",
+      "offset": [
+        334,
+        436
+      ],
+      "size": [
+        133,
+        131
+      ],
+      "pivot": [
+        440,
+        492
+      ],
+      "parent": "left-arm"
+    },
+    "hand-left": {
+      "file": "hand-left.png",
+      "offset": [
+        276,
+        388
+      ],
+      "size": [
+        111,
+        101
+      ],
+      "pivot": [
+        369,
+        466
+      ],
+      "parent": "left-arm"
+    },
+    "arm-right": {
+      "file": "arm-right.png",
+      "offset": [
+        675,
+        484
+      ],
+      "size": [
+        127,
+        168
+      ],
+      "pivot": [
+        697,
+        550
+      ],
+      "parent": "right-arm"
+    },
+    "hand-right": {
+      "file": "hand-right.png",
+      "offset": [
+        755,
+        567
+      ],
+      "size": [
+        93,
+        74
+      ],
+      "pivot": [
+        784,
+        615
+      ],
+      "parent": "right-arm"
+    },
+    "ear-left": {
+      "file": "ear-left.png",
+      "offset": [
+        387,
+        115
+      ],
+      "size": [
+        138,
+        174
+      ],
+      "pivot": [
+        499,
+        248
+      ],
+      "parent": "head"
+    },
+    "ear-right": {
+      "file": "ear-right.png",
+      "offset": [
+        731,
+        264
+      ],
+      "size": [
+        229,
+        119
+      ],
+      "pivot": [
+        744,
+        326
+      ],
+      "parent": "head"
+    },
+    "eye-left": {
+      "file": "eye-left.png",
+      "offset": [
+        503,
+        233
+      ],
+      "size": [
+        73,
+        74
+      ],
+      "pivot": [
+        540,
+        270
+      ],
+      "parent": "head"
+    },
+    "eye-right": {
+      "file": "eye-right.png",
+      "offset": [
+        613,
+        276
+      ],
+      "size": [
+        80,
+        77
+      ],
+      "pivot": [
+        654,
+        315
+      ],
+      "parent": "head"
+    },
+    "mouth-smile": {
+      "file": "mouth-smile.png",
+      "offset": [
+        530,
+        335
+      ],
+      "size": [
+        106,
+        51
+      ],
+      "pivot": [
+        581,
+        363
+      ],
+      "parent": "head"
+    },
+    "scarf-wrap": {
+      "file": "scarf-wrap.png",
+      "offset": [
+        475,
+        397
+      ],
+      "size": [
+        221,
+        108
+      ],
+      "pivot": [
+        606,
+        469
+      ],
+      "parent": "root"
+    },
+    "scarf-tail": {
+      "file": "scarf-tail.png",
+      "offset": [
+        449,
+        475
+      ],
+      "size": [
+        110,
+        167
+      ],
+      "pivot": [
+        523,
+        497
+      ],
+      "parent": "root"
+    },
+    "lantern": {
+      "file": "lantern.png",
+      "offset": [
+        746,
+        612
+      ],
+      "size": [
+        111,
+        246
+      ],
+      "pivot": [
+        802,
+        638
+      ],
+      "parent": "right-arm"
+    },
+    "trouser-left": {
+      "file": "trouser-left.png",
+      "offset": [
+        474,
+        768
+      ],
+      "size": [
+        91,
+        74
+      ],
+      "pivot": [
+        521,
+        789
+      ],
+      "parent": "root"
+    },
+    "trouser-right": {
+      "file": "trouser-right.png",
+      "offset": [
+        591,
+        771
+      ],
+      "size": [
+        91,
+        74
+      ],
+      "pivot": [
+        637,
+        790
+      ],
+      "parent": "root"
+    },
+    "boot-left": {
+      "file": "boot-left.png",
+      "offset": [
+        423,
+        824
+      ],
+      "size": [
+        137,
+        79
+      ],
+      "pivot": [
+        514,
+        850
+      ],
+      "parent": "root"
+    },
+    "boot-right": {
+      "file": "boot-right.png",
+      "offset": [
+        594,
+        826
+      ],
+      "size": [
+        136,
+        75
+      ],
+      "pivot": [
+        640,
+        850
+      ],
+      "parent": "root"
+    },
+    "head": {
+      "file": "head.png",
+      "offset": [
+        472,
+        72
+      ],
+      "size": [
+        297,
+        372
+      ],
+      "pivot": [
+        625,
+        425
+      ],
+      "parent": "head"
+    },
+    "body": {
+      "file": "body.png",
+      "offset": [
+        422,
+        446
+      ],
+      "size": [
+        297,
+        345
+      ],
+      "pivot": [
+        585,
+        665
+      ],
+      "parent": "root"
+    },
+    "charm-1": {
+      "file": "charm-1.png",
+      "offset": [
+        74,
+        120
+      ],
+      "size": [
+        114,
+        138
+      ],
+      "pivot": [
+        130,
+        190
+      ],
+      "parent": "root"
+    },
+    "charm-2": {
+      "file": "charm-2.png",
+      "offset": [
+        248,
+        190
+      ],
+      "size": [
+        98,
+        137
+      ],
+      "pivot": [
+        296,
+        262
+      ],
+      "parent": "root"
+    },
+    "charm-3": {
+      "file": "charm-3.png",
+      "offset": [
+        122,
+        305
+      ],
+      "size": [
+        110,
+        112
+      ],
+      "pivot": [
+        177,
+        360
+      ],
+      "parent": "root"
+    },
+    "closed-eye-left": {
+      "file": "closed-eye-left.png",
+      "offset": [
+        503,
+        233
+      ],
+      "size": [
+        73,
+        74
+      ],
+      "pivot": [
+        540,
+        270
+      ],
+      "parent": "head"
+    },
+    "closed-eye-right": {
+      "file": "closed-eye-right.png",
+      "offset": [
+        613,
+        275
+      ],
+      "size": [
+        80,
+        79
+      ],
+      "pivot": [
+        654,
+        315
+      ],
+      "parent": "head"
+    },
+    "mouth-neutral": {
+      "file": "mouth-neutral.png",
+      "offset": [
+        547,
+        358
+      ],
+      "size": [
+        71,
+        17
+      ],
+      "pivot": [
+        581,
+        363
+      ],
+      "parent": "head"
+    },
+    "mouth-concern": {
+      "file": "mouth-concern.png",
+      "offset": [
+        544,
+        357
+      ],
+      "size": [
+        77,
+        25
+      ],
+      "pivot": [
+        581,
+        363
+      ],
+      "parent": "head"
+    }
+  },
+  "paintOrder": [
+    "shoulder-backing",
+    "trouser-left",
+    "trouser-right",
+    "boot-left",
+    "boot-right",
+    "arm-left",
+    "hand-left",
+    "arm-right",
+    "hand-right",
+    "body",
+    "ear-left",
+    "ear-right",
+    "head",
+    "eye-left",
+    "closed-eye-left",
+    "eye-right",
+    "closed-eye-right",
+    "mouth-smile",
+    "mouth-neutral",
+    "mouth-concern",
+    "scarf-wrap",
+    "scarf-tail",
+    "lantern",
+    "charm-1",
+    "charm-2",
+    "charm-3"
+  ],
+  "optionalParts": [
+    "closed-eye-left",
+    "closed-eye-right",
+    "mouth-concern",
+    "mouth-neutral"
+  ],
+  "outline": {
+    "file": "ink-outline.png",
+    "offset": [
+      72,
+      70
+    ],
+    "size": [
+      890,
+      835
+    ]
+  },
+  "fallback": "assembled-rest.png",
+  "fileHashes": {
+    "shoulder-backing.png": "dff2fdba060829573216bc5409caad493fb2d4f4446c9b1342bf3000bbc87448",
+    "arm-left.png": "d081a5f7153210342566d1857b0748200ff54e5c243a88bc2c37094eb8fbf2c3",
+    "hand-left.png": "d59b6325758f0114f02dcd4db9945c142afc228b3eab78839449cfbd330f03cd",
+    "arm-right.png": "a4383b822e81677ee1b263c283698f891a55787ff8d6e566c3cdc38b3c5b93cd",
+    "hand-right.png": "6e5c37a980752c682139012526058d49ac54fb1ea6099682f034008d1837a00b",
+    "ear-left.png": "b4064e9032ebc33414780496138a04530b1b558586eeece1453cec9a1fe4f283",
+    "ear-right.png": "3560f608d488394103f56466b4c595ba355d44d692a8592dbc36d3df981be71c",
+    "eye-left.png": "6b13b8abe1b35582b2b91545f8e3e166ff29ff1ecfaac4b7df6f072e7efdf41e",
+    "eye-right.png": "64f57cb85ee65e1fb43351d60fe23b909af49ae25fbc34ae62808df20f3ceca4",
+    "mouth-smile.png": "487a8cdd835b333cdd8cd74a10acce15a0852c5e27f0a7257932f03c26c2fdbd",
+    "scarf-wrap.png": "e107803bd5e58ad49763ae13360429d912f6c37115b70eaffc4d31da2a825a7f",
+    "scarf-tail.png": "480bb8052cf5cb41fc6e31db3fabbbc65110208be2b7149ac761100deed48aeb",
+    "lantern.png": "74fa22a983cf9a934d5383711c286f1d4ad7645d934c1c41ab3a4ad8229e9d93",
+    "trouser-left.png": "37d1ee0641d596c042d2dc6b5493e64fb7cfaefbfafd5221381ae1ae70b1a39d",
+    "trouser-right.png": "73eabe5b2636800dc22ac9d31fb5d9c16bcdb06679835830cbe4f454cd1a5359",
+    "boot-left.png": "a6911ad8e71bd1bd761cfcf6fd66604c63dfb2a463de6dcc3158f1beb3751f3d",
+    "boot-right.png": "2513ffb9f9f7a274019b06a93590ddd5a0f8b1bbc4055239d3a6188ff397b2eb",
+    "head.png": "13281b9c146b76ac927cd118a849dbf62be8251e2d83b4a8cb78db152d0a2798",
+    "body.png": "77f116b16e16713e533c36347436d5051c20a346a7b2be2acb02c479fb751c99",
+    "charm-1.png": "26e16ca827d6e38a653e3850af90621a72fa94fd5c688a622aa2213d316566ad",
+    "charm-2.png": "22e95e6f919e9676b74f056a0b5260a7a2fdf7e6d7097b0af4a5765de19d7291",
+    "charm-3.png": "10ba189dca161d173ab71865cd435ae424af20e40507d58f2d9aae73ef776027",
+    "closed-eye-left.png": "c237bf701535516d90a5a8fb5b3264320a934a7d2a63d700b2e524a875741a56",
+    "closed-eye-right.png": "57614f5b7c89cc288065d39c69357dc431a1b129351bcdbb3b13419838f760c8",
+    "mouth-neutral.png": "d705ecfd79a13edc9654529736975761c6b687e36fcbe2d5a7b0827f645f2839",
+    "mouth-concern.png": "dbc9210cb3fe3aebb850bbd245630b5c5f4cb24ffa9ff6cd56a4dd84f39b4229",
+    "ink-outline.png": "09909d3fc5b4342d7d5977b5e25f5dadf297406e3cde8016b2f7de9b5d702a11",
+    "assembled-rest.png": "d41dad72351e0b5544b9451b1739e87c1aea9c5f8e2247282fbb207fbb619a31"
+  }
+}

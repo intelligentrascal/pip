@@ -1,0 +1,27 @@
+name: Bug report
+description: Report a reproducible problem using disposable data.
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Never attach credentials, personal data, raw logs, databases, backups or unredacted screenshots.
+        For vulnerabilities, follow SECURITY.md instead of posting sensitive details here.
+  - type: textarea
+    id: behavior
+    attributes:
+      label: Expected and actual behavior
+      description: Describe what you tried and what happened, without private information.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Minimal reproduction
+      description: Use disposable facts and an isolated profile. Include source version and macOS version, not personal paths.
+    validations:
+      required: true
+  - type: textarea
+    id: limits
+    attributes:
+      label: Evidence and limits
+      description: Share only redacted evidence. Say whether the result is a fixture or live behavior.

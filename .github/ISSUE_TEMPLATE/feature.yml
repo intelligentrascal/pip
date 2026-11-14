@@ -1,0 +1,20 @@
+name: Feature request
+description: Explain a user need and its privacy boundaries.
+body:
+  - type: markdown
+    attributes:
+      value: Do not include credentials, personal information or private screenshots.
+  - type: textarea
+    id: intent
+    attributes:
+      label: What are you trying to do?
+      description: Describe the user need, not only a proposed implementation.
+    validations:
+      required: true
+  - type: textarea
+    id: boundaries
+    attributes:
+      label: Proposed behavior and limits
+      description: Name any sharing, account, device permission, billing or consequential action involved.
+    validations:
+      required: true
