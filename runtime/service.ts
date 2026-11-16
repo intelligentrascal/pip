@@ -1,8 +1,9 @@
 import readline from 'node:readline';
 import os from 'node:os';
 import path from 'node:path';
-import { openHost, type Host } from './pi-durable-adapter.js';
-import { claudeProvider } from './claude.js';
+import { openHost, RUN_LIMITS, type Host, type ConversationMessage } from './pi-durable-adapter.js';
+import { idle, replay, type Live } from './live.js';
+import { repliesOf } from './reply.js';
 import { ProviderManager } from './providers.js';
 import { text } from './domain.js';
 import { resolvePublic } from './public-web.js';
@@ -20,11 +21,21 @@ let providers:ProviderManager|undefined;
 const changed=()=>{if(host)void host.snapshot().then(async state=>{
  const workViews=trackerRecords(state,'work');
  for(const work of workViews)if(['Done','Stopped','Interrupted'].includes(work.status)&&browsers.has(work.id)&&browsers.state(work.id).driver!=='stopped')await browsers.close(work.id);
- write('state',{state,workViews,providers:await providers!.view(),fixture:process.env.PIP_TEST==='1'});
+ write('state',{state,workViews,replies:repliesOf(state.works),providers:await providers!.view(),fixture:process.env.PIP_TEST==='1'});
 });};
+// What the conversation is doing now: rows, words and turns, sent at most every 60 ms so a long answer never floods the page.
+let live:Live=idle(),liveTimer:ReturnType<typeof setTimeout>|undefined;
+const sendLive=()=>{liveTimer=undefined;write('live',{...live,limits:RUN_LIMITS,now:Date.now()});};
+const onConversation=(message:ConversationMessage)=>{
+ write('conversation',message);
+ if(!('events' in message))return;
+ const before=live;live=replay(message.events as never,Date.now,live);
+ if(live===before)return;
+ if(!live.running||!before.running){if(liveTimer)clearTimeout(liveTimer);sendLive();}else if(!liveTimer)liveTimer=setTimeout(sendLive,60);
+};
 try {
- providers=new ProviderManager({home,claudeEnvAllowed:process.env.PIP_CLAUDE_ALLOWED==='1',claude:()=>claudeProvider(true,process.env.PIP_CLAUDE_PATH??'/opt/homebrew/bin/claude'),notify:e=>{if(e.type==='changed')changed();else write('openAuth',{url:e.url});}});
- host=await openHost({browser:id=>browsers.tools(id),home,fixture:process.env.PIP_TEST==='1',provider:providers.provider(),changed,backend,native:proposal=>write('effect',proposal)});
+ providers=new ProviderManager({home,notify:e=>{if(e.type==='changed')changed();else write('openAuth',{url:e.url});}});
+ host=await openHost({browser:id=>browsers.tools(id),home,fixture:process.env.PIP_TEST==='1',engine:providers.engine(),events:onConversation,changed,backend,native:proposal=>write('effect',proposal)});
  changed();
  const reader=readline.createInterface({input:process.stdin,crlfDelay:Infinity});
  let line=Promise.resolve();
@@ -60,6 +71,7 @@ try {
      try{await host!.submit(id,request,p.contextWorkId===undefined?undefined:text(p.contextWorkId,'selected result',100),p.screenContext,p.project,p.browserPages!==undefined);}catch(error){if(browsers.has(id))await browsers.close(id);throw error;}
      break;
     }
+    case 'steer': await host!.steer(text(p.workId,'work ID',100),text(p.request,'request',12000));break;
     case 'browser': {
      const workId=text(p.workId,'work ID',100);
      if(!(await host!.snapshot()).works.some(w=>w.id===workId))throw Error('This task does not exist.');

@@ -1,8 +1,8 @@
 name: Source checks
+# Hosted runs are switched off: every check runs locally (see docs/RELEASING.md and docs/PUBLICATION.md).
+# Manual start only; nothing starts on a push or pull request.
 on:
-  pull_request:
-  push:
-    branches: [main]
+  workflow_dispatch:
 permissions:
   contents: read
 concurrency:
@@ -24,7 +24,7 @@ jobs:
       - run: npm run build
       - run: swift run PipCoreChecks
       - run: swift run PipDictationChecks
-      - run: python3 tests/publication-export.test.py && python3 tests/launch-help.test.py
+      - run: python3 tests/publication-export.test.py && python3 tests/launch-help.test.py && python3 tests/release-package.test.py
         env:
           PIP_TEST_ROOT: ${{ runner.temp }}
 # No provider keys, live inference, artifact upload, signing or self-hosted runner.

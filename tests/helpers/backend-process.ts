@@ -13,7 +13,7 @@ export async function fixtureHome(){
  await writeFile(path.join(home,'.pip-test-home'),'pip-test-only');
  const targets=[{id:randomUUID(),title:'Fixture calendar',kind:'event',writable:true,revision:randomUUID()},{id:randomUUID(),title:'Fixture reminders',kind:'reminder',writable:true,revision:randomUUID()},{id:randomUUID(),title:'Other fixture reminders',kind:'reminder',writable:true,revision:randomUUID()}];
  await writeFile(path.join(home,'backend-seed.json'),JSON.stringify({targets,objects:[],access:true,notificationPermission:'granted'}));
- return {home,sandbox,targets,env:{...process.env,PIP_HOME:home,PIP_TEST_ROOT:sandbox,PIP_TEST:'1',PIP_NATIVE:'1',PIP_ISOLATED_BACKENDS:'1',PIP_CLAUDE_ALLOWED:''}};
+ return {home,sandbox,targets,env:{...process.env,PIP_HOME:home,PIP_TEST_ROOT:sandbox,PIP_TEST:'1',PIP_NATIVE:'1',PIP_ISOLATED_BACKENDS:'1'}};
 }
 export function nativePeer(env:NodeJS.ProcessEnv){
  const child=spawn(path.resolve('.build/debug/PipBackendFixture'),[],{env,stdio:['pipe','pipe','pipe']});

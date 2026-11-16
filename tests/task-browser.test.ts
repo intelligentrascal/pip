@@ -7,10 +7,22 @@ import net from 'node:net';
 import dns from 'node:dns/promises';
 import { mock } from 'node:test';
 import { syncBuiltinESMExports } from 'node:module';
-import { createSdkMcpServer } from '@anthropic-ai/claude-agent-sdk';
-import { Client } from '@modelcontextprotocol/sdk/client/index.js';
-import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
-import { modelBrowserTools,browserToolNames } from '../runtime/model-browser.js';
+import { pipTools, type ActiveRun } from '../runtime/pip-tools.js';
+import { openHost } from '../runtime/pi-durable-adapter.js';
+import { fauxEngine, said, calls } from './helpers/faux-engine.js';
+import { testHome, until, finished } from './helpers/ask.js';
+
+/** The model's browser tools, called as the conversation calls them: by name, with a failure thrown to the model. */
+function modelBrowser(browser:NonNullable<ActiveRun['browser']>){
+ const run:ActiveRun={workId:'read-one',sources:[],browser,check:async()=>{}};
+ const tools=pipTools(()=>run);
+ const call=async(name:string,args:Record<string,unknown>)=>{
+  const tool=tools.find(t=>t.name===name);if(!tool)throw new Error('No such tool: '+name);
+  const result=await (tool as unknown as {execute:(a:unknown,api:unknown,ctx:unknown)=>Promise<{output:{type:string;text:string}[]}>}).execute(args,{},{});
+  return JSON.parse(result.output[0].text);
+ };
+ return {call,tools,citations:run.sources};
+}
 
 // Intent: accepted ELF-8 task-owned browser, fresh refs, private exclusive handoff,
 // hostile page/network denial and Stop. Actual Chromium; no account or native input.
@@ -18,19 +30,16 @@ test('task browsers isolate storage, bound public reads and exclude agent comman
  let visits=0;
  const events:any[]=[];
  const owner=new TaskBrowsers(s=>events.push(s),{headless:true,fixture:{respond:url=>savedBrowserPage(url,visits++===0)}});
- let client:Client|undefined,server:ReturnType<typeof createSdkMcpServer>|undefined;
  try{
   owner.grant('read-one',[browserPageURL,linkedURL]);owner.grant('read-two',[browserPageURL]);
   assert.throws(()=>owner.grant('read-one',[browserPageURL]),/already/);
   assert.equal(owner.tools('another-task'),undefined);
   const first=owner.tools('read-one')!,second=owner.tools('read-two')!;
-  const citations:any[]=[];
-  server=createSdkMcpServer({name:'pip-browser',version:'1.0.0',tools:modelBrowserTools(first,source=>citations.push(source))});
-  const [a,b]=InMemoryTransport.createLinkedPair();await server.instance.connect(a);client=new Client({name:'Pip browser protocol check',version:'1.0.0'});await client.connect(b);
-  assert.deepEqual((await client.listTools()).tools.map(t=>t.name).sort(),[...browserToolNames].sort());
-  const denied=await client.callTool({name:'takeover',arguments:{workId:'read-two'}}).then(result=>result.isError===true,()=>true);assert.equal(denied,true);
-  const response:any=await client.callTool({name:'inspect',arguments:{}});assert.notEqual(response.isError,true);
-  let reading=JSON.parse(response.content[0].text);
+  const model=modelBrowser(first),citations=model.citations;
+  for(const name of ['inspect','navigate','scroll'])assert.ok(model.tools.some(t=>t.name===name),name+' is a tool of the conversation');
+  assert.equal(model.tools.some(t=>t.name==='takeover'),false,'private control is never a model tool');
+  await assert.rejects(model.call('takeover',{workId:'read-two'}),/No such tool/);
+  let reading=await model.call('inspect',{});
   assert.equal(citations[0].url,browserPageURL);
   assert.match(reading.text,/@earendil-works\/pi-durable/);
   assert.match(reading.text,/Task-local note: Read the durable harness introduction; cookie: readingNote=durable/);
@@ -46,8 +55,7 @@ test('task browsers isolate storage, bound public reads and exclude agent comman
   await first.scroll('down',reading.revision);
   await assert.rejects(first.navigate(old.links[0].ref,old.revision),/expired/);
   reading=await first.inspect();
-  const navigated:any=await client.callTool({name:'navigate',arguments:{ref:reading.links[0].ref,revision:reading.revision}});assert.notEqual(navigated.isError,true);
-  const next=JSON.parse(navigated.content[0].text);assert.equal(next.url,linkedURL);assert.equal(citations.at(-1).url,linkedURL);
+  const next=await model.call('navigate',{ref:reading.links[0].ref,revision:reading.revision});assert.equal(next.url,linkedURL);assert.equal(citations.at(-1).url,linkedURL);
   const frame=await owner.watch('read-one');assert.ok(Buffer.from(frame.frame,'base64').length>1000);
   await owner.takeOver('read-one');
   assert.equal(owner.state('read-one').driver,'captain');
@@ -64,7 +72,7 @@ test('task browsers isolate storage, bound public reads and exclude agent comman
   assert.equal(owner.state('read-two').driver,'pip','Stop one browser does not stop another task');
   assert.ok(events.some(s=>s.frameAt),'Actual successful capture publishes frame freshness, not a premature success label');
   assert.ok(!JSON.stringify(events).includes('@earendil-works/pi-durable'),'No page body or frame in activity metadata');
- }finally{await client?.close();await server?.instance.close();await owner.closeAll();}
+ }finally{await owner.closeAll();}
 });
 
 // Intent: ELF-8 keeps passwords and verification private, including Watch frames.
@@ -96,4 +104,21 @@ test('browser proxy rejects unreviewed hosts and private DNS at the connection b
   socket.on('connect',()=>socket.write(`CONNECT ${host}:443 HTTP/1.1\r\nHost: ${host}:443\r\n\r\n`));socket.on('data',chunk=>reply+=chunk);socket.on('error',reject);socket.on('close',()=>resolve(reply));
  });
  try{assert.equal(await request('example.com'),'');assert.equal(await request('unreviewed.example'),'');}finally{await proxy.close();dnsMock.mock.restore();syncBuiltinESMExports();}
+});
+
+// Intent: ELF-56 the task browser is one of the conversation's tools: a model that inspects the granted page cites it, with no takeover path.
+test('the conversation reads a granted page through the inspect tool and cites it', {timeout:45000}, async()=>{
+ const owner=new TaskBrowsers(()=>{},{headless:true,fixture:{respond:url=>savedBrowserPage(url,false)}});
+ const home=await testHome('pip-browser-tool-');const {faux,engine}=fauxEngine();
+ faux.setResponses([calls(['inspect',{}]),ctx=>{
+  const result=ctx.messages.find(m=>m.role==='toolResult');assert.ok(result,'the reading reaches the model as a tool result');
+  return said('The page introduces the durable harness.');}]);
+ const host=await openHost({home,fixture:true,engine,browser:id=>owner.tools(id)});
+ try{
+  owner.grant('read-page',[browserPageURL]);
+  await host.submit('read-page','Read this page and summarise it.',undefined,undefined,undefined,true);
+  const state=await until(host,finished('read-page'));const work=state.works[0];
+  assert.equal(work.status,'Done');assert.equal(work.result?.sources[0].url,browserPageURL);assert.match(work.result!.sources[0].text,/@earendil-works\/pi-durable/);
+  assert.equal(faux.state.callCount,2);
+ }finally{await host.close();await owner.closeAll();}
 });

@@ -19,8 +19,7 @@ contact address is required. Trademark and other rights are not granted.
 `curious-hearth/*.png` derives from the selected GPT Image 1.5 painted output,
 locally mirrored, masked, cropped, reconstructed and registered for app-owned
 motion. Its references trace to original Pip vector art and an earlier FLUX.2
-[pro] Hearth study. `web/smoke-pixels.js` encodes a processed Nano Banana 2.1
-smoke output; parchment grain is procedural. No film or game assets belong here.
+[pro] Hearth study. No film or game assets belong here.
 
 The vector grant above does not blanket-license these generated outputs. The
 recorded BFL developer terms contain output-training and Content Credentials

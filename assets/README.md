@@ -13,8 +13,7 @@ Curious Hearth parts; the earlier vector companion remains an editable reference
 | `pip-mark.png` | Transparent 128-pixel mark export | Local rasterization; use as an NSImage template |
 
 The painted source chain also includes an earlier FLUX.2 [pro] project-art study.
-The smoke texture encoded in `web/smoke-pixels.js` derives from Nano Banana 2.1;
-parchment grain is procedural. These materials do not imply model/provider
+The Curious Hearth painted parts are the only artwork. These materials do not imply model/provider
 endorsement, exclusive AI-art copyright or legal uniqueness.
 
 ## License and source review

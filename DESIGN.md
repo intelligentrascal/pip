@@ -1,58 +1,75 @@
 # Pip: a familiar at the edge of your work
 
-Pip combines a useful persistent composer with one finite, authored magical moment.
+Pip combines a useful persistent chat window with finite, authored presence.
 This document describes the current design contract, not proof that every capability
 or native journey is complete. See [status](docs/STATUS.md) for implementation limits.
 
 ## Composition and material
 
-Pip lives at the right visible edge of the active display, above the Dock and clamped
-to the display. The Curious Hearth companion stands **beside** a warm parchment page;
-the page unrolls up and outward from the open palm. Pip does not sit above or on it.
-Results grow upward without moving the composer. Browsing/Watch can use their
-reviewed larger layouts, retaining composer position and palm contact.
+Pip lives at the right visible edge of the active display. The Curious Hearth companion
+stands **beside** the chat window, never on it. The window is 600 pt wide by default (420 to 760 pt when dragged), its bottom edge
+sits 24 pt above the bottom of the visible screen, and it fades in and grows upward as
+the conversation grows: 163 pt at its smallest, at most 70% of the visible height, after
+that the conversation scrolls; dragging its top edge sets that most height. The message box stays 30 pt above the window's bottom edge
+in every state, so it never moves when answers arrive.
 
 The interface is a small writing surface, not a game dashboard. Preserve the original
 sage-green elf, leaf ears, attentive dark eyes, copper scarf, mended indigo coat and
 brass lantern. Keep a consistent front-facing painted character and the monochrome
 menu-bar mark. Do not imply a provider, franchise or film endorsement.
 
-Use native system sans for instructions, controls and results, with a small installed
-system-serif signature for Pip's name. There is no network-font dependency.
+Use the Mac's own sans type for everything, 14 px text, sharp corners and cosy spacing.
+There is no network-font dependency. See [Lantern](docs/LANTERN.md) for the parts, the
+motion and the see-through window.
 
 ### Current surface tokens
 
-The base interface retains ink-green tokens in `web/style.css`; the active parchment
-surface overrides them in `web/emberweave.css`:
+The Lantern language is one dark window with a single amber accent and a glow on the
+current step. It follows the Mac's light and dark setting. Tokens live in `web/lantern.css`.
 
-| Role | Parchment surface | Base ink surface |
+| Role | Dark | Light |
 | --- | --- | --- |
-| Surface | `#f6ead4` | `#142923` |
-| Input/inset | `#ead9b9` | `#203a31` |
-| Primary text | `#142923` | `#f6ead4` |
-| Secondary text | `#5d533f` | `#c7cbb9` |
-| Action/focus | `#6f5217` | `#e7bf78` |
-| Dividers | `#b59a6e` | `#4c6354` |
-| Confirmed success | `#2d6a48` | `#abd6b8` |
-| Pending/unknown | `#7d4f10` | `#f0c88c` |
-| Failure | `#9a3a2f` | `#f2ada4` |
+| Window | `#171411` | `#faf7f1` |
+| Raised surface | `#221e19` | `#ffffff` |
+| Inset | `#0f0d0b` | `#f0ebe1` |
+| Primary text | `#f5f0e7` | `#1e1a14` |
+| Secondary text | `#bfb6a7` | `#5a5346` |
+| Quiet text | `#aaa193` | `#6b6355` |
+| Accent | `#f3b758` | `#bd7f18` (text `#7d5108`) |
+| Confirmed success | `#aec48d` | `#3d6a38` |
+| Pending/unknown | `#ec9a62` | `#a04e17` |
+| Failure | `#f28f80` | `#b03a2c` |
 
-Respect readable contrast, system text scaling, visible keyboard focus and reduced
-motion. Meaning must never depend only on color, an ear pose, sparkle or movement.
-Keep controls usable on narrow/short displays; results scroll rather than overlap
-input. The character is decorative to VoiceOver; meaningful status has literal text.
+The window is 92% tinted over a blurred copy of what is behind it. Reduce Transparency
+or Increase Contrast makes it solid. Respect readable contrast (every piece of text
+reaches 4.5:1 in both schemes, see-through and solid), system text scaling, visible
+keyboard focus and reduced motion. Meaning must never depend only on color, an ear
+pose, sparkle or movement. Keep controls usable on narrow/short displays; results scroll
+rather than overlap the message box. The character is decorative to VoiceOver;
+meaningful status has literal text.
 
 ## Views and controls
 
-- **Persistent composer:** labelled request field, explicit Talk and Ask, editable
-  prompt starters, Settings, shortcut disclosure, Feedback and literal privacy/error
-  status. A fresh real profile contains no sample facts or fictional work.
-- **Header:** Pip's name, literal task status, Tracker and Close. Summon uses the
-  configurable Command–Shift letter or the menu-bar fallback. Report registration
-  failure; do not silently register another shortcut.
-- **Results:** readable answer, sources when applicable, editable writing draft and
-  selected-result follow-up. A source is evidence, never an instruction. Result and
-  project context are explicitly selected and bounded, not automatic memory.
+- **Message box:** a labelled field with Talk and Send, three editable starters on a
+  new chat, and a footer that says what Pip is doing, the step count and the time
+  against its limits. A fresh real profile contains no sample facts or fictional work.
+- **Header:** the chat's title, a literal status, Chats, New chat, More (Settings,
+  Feedback, Tracker, Remember, Browser task) and Close. Summon uses the configurable
+  Command–Shift letter or the menu-bar fallback. Report registration failure; do not
+  silently register another shortcut.
+- **Answer:** text and markdown, plus the ten parts Pip may draw through OpenUI's
+  library: plan, table, chart, choice, sources, route, fold, pictures, note and draft.
+  The runtime parses and checks each block; the page draws only text nodes. A block the
+  library cannot draw stays as plain text. A source is evidence, never an instruction;
+  a draft is only shown, never sent. Result and project context are explicitly selected
+  and bounded, not automatic memory.
+- **Working:** one row per step in plain words with its time, the words of the answer as
+  they arrive, and Stop. Typing meanwhile turns Send into an amber Steer button ("Tell Pip
+  to change course"); Return redirects Pip after his current step without stopping him.
+- **Paused step:** before an unasked send, payment, publication or deletion, a panel above
+  the message box says what would happen. The safe button comes first, the accent button
+  names the act, and typing then Steer cancels the step and redirects Pip.
+- **Chats:** the conversations on this Mac, searchable, newest first.
 - **Memory review:** exact fact, Review save and a separate Save fact. Edit and
   Forget also need confirmation. Enter in the composer is never approval.
 - **Provider settings:** connection/model/Allow state and the named backup. Explain
@@ -65,38 +82,27 @@ input. The character is decorative to VoiceOver; meaningful status has literal t
   Take over/Return control boundary. Hide private frames during takeover; inspect
   freshly after return. No consequential submission follows from browsing consent.
 - **Dictation:** explicit Talk, on-device boundary, editable transcript review,
-  separate Add to composer and Ask. Typing remains available. Summoning starts
+  separate Add to message and Send. Typing remains available. Summoning starts
   neither microphone capture nor screen sharing.
 
-Escape closes a secondary view first, then hides the popup. Hiding is not Stop and
+Escape closes the menu, stops work, cancels dictation, leaves a secondary view and finally hides the window. Hiding is not Stop and
 does not undo a dispatched effect. Only a truthful task remnant may remain; Hide Pip
 entirely suppresses it. A paused, blocked or unknown operation stays literal.
 
 ## Motion and authority
 
-The accepted direction is Living ink with right-edge presence, intent reveal,
-task-only remnant, dictation and finite authored motion. Emberweave supplies the
-hand-led parchment composition and contextual effects. Original project code owns
-state meaning; handed-on demo controls cannot declare a real microphone active or
-a task verified.
+Arrivals take 360 ms and small changes 160 ms on one easing curve; a quick repeat
+summon within ten minutes resumes the last chat. Pip himself moves: he breathes, blinks and
+sways while he waits, follows the pointer with his eyes and head, circles his scrolls while
+he works and holds one out when paused. A Magic setting (Calm, Balanced, Rich; Balanced by
+default) sets the light around him: embers, a ground circle and rays in Balanced, a dimmed
+desktop and more embers in Rich, none in Calm. Original project code owns state meaning;
+handed-on demo controls cannot declare a real microphone active or a task verified.
 
-| State | Meaningful cue |
-| --- | --- |
-| Arrival | Page unrolls from the palm; material gathers locally |
-| Listening | Ear and input-level meter, only from real input |
-| Thinking | Joined route islands |
-| Working | Finite quill-writing gesture, then still rest |
-| Approval | Parked quill; waits for the person's decision |
-| Blocked | Closed fold with slack thread |
-| Unknown | Unresolved state, not a success animation or resend |
-| Verified done | Seal/brief effect only after an authoritative receipt |
-| Hide | Finite close gesture; native hotkey/menu hides remain immediate |
-
-New visible events retarget from the current rendered pose rather than queueing
-animations. Typing never waits for arrival or an effect. Reduced motion cuts to
-meaningful still poses, including preference changes mid-gesture. No decorative
-loops, perpetual particles, background celebration or sound. The selected contour
-is a registered raster reveal, not a claim of continuous brush simulation.
+Typing never waits for arrival or an effect. Reduce Motion cuts to meaningful still
+states at every Magic level, including preference changes mid-gesture. Effects mark a change
+and end; no effect draws inside the window's text, except Rich's dim and dust on its edge.
+No sound.
 
 ## ChatGPT connection controls
 

@@ -1,0 +1,36 @@
+{
+  "schema": 1,
+  "product": "pip",
+  "releases": [
+    {
+      "version": "0.1.0-alpha.1",
+      "channel": "alpha",
+      "minimumSystemVersion": "14.0",
+      "architecture": "arm64",
+      "url": "https://github.com/intelligentrascal/pip/releases/download/v0.1.0-alpha.1/Pip-0.1.0-alpha.1-arm64.zip",
+      "sha256": "832de879af7cd7c451e14c33041224b3a130af6a31a549042f9af51d099d1d0a",
+      "size": 19,
+      "notes": "First alpha."
+    },
+    {
+      "version": "0.1.0-alpha.2",
+      "channel": "alpha",
+      "minimumSystemVersion": "14.0",
+      "architecture": "arm64",
+      "url": "https://github.com/intelligentrascal/pip/releases/download/v0.1.0-alpha.2/Pip-0.1.0-alpha.2-arm64.zip",
+      "sha256": "80cc69717d404c63a25a862695eec2d380bdd81d5e47fdefa23c4bd56916af41",
+      "size": 27,
+      "notes": "Second alpha."
+    },
+    {
+      "version": "0.2.0",
+      "channel": "stable",
+      "minimumSystemVersion": "15.0",
+      "architecture": "arm64",
+      "url": "https://github.com/intelligentrascal/pip/releases/download/v0.2.0/Pip-0.2.0-arm64.zip",
+      "sha256": "d9b184d14ec9599f552be8c8addd5ea94fcfbbb8e41184d22e0d5dc9a7937001",
+      "size": 21,
+      "notes": "First stable release."
+    }
+  ]
+}

@@ -2,7 +2,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {createModels,type Context} from '@earendil-works/pi-ai';
 import {openaiProvider} from '@earendil-works/pi-ai/providers/openai';
-import {CHATGPT_MODEL,chatGPTPayload} from '../runtime/chatgpt-auth.js';
+import {CHATGPT_MODEL,chatGPTPayload} from '../runtime/chatgpt-transport.js';
 
 // Intent: ELF-26, the pinned engine must handle preview tool declarations and only accept
 // completed Responses. Real engine + HTTP/SSE parser, official Responses shapes;

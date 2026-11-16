@@ -2,6 +2,9 @@ import AppKit
 import WebKit
 import Carbon
 import Darwin
+import ApplicationServices
+import AVFoundation
+import UserNotifications
 
 final class SpellPanel: NSPanel {
     override var canBecomeKey: Bool { true }
@@ -11,6 +14,9 @@ final class SpellPanel: NSPanel {
 final class Pip: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNavigationDelegate {
     var panel: SpellPanel!
     var web: WKWebView!
+    /// The see-through backdrop under the chat window. It is hidden (the window turns solid) under Reduce Transparency or Increase Contrast.
+    var backdrop: NSVisualEffectView!
+    var windowSize = CGSize(width: PanelGeometry.defaultWidth, height: PanelGeometry.smallestHeight)
     var item: NSStatusItem!
     var child: Process?
     var input: FileHandle?
@@ -21,12 +27,22 @@ final class Pip: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNavi
     var pending: [[String: Any]] = []
     var hotkeyStatus = "⌘⇧E"
     var shortcut = try! SummonShortcut()
+    var magic = MagicSetting()
+    /// The width and most height the person chose by dragging the window's edges, saved in window.json; mostHeight follows a drag live.
+    var windowSetting = WindowSetting()
+    var mostHeight: Double?
+    var dimPanel: NSPanel?
+    var pointerTimer: Timer?
+    var lastPointer: CGPoint?
+    var pointerSent = false
+    var hideAsked = false
     var summonMenuItem: NSMenuItem?
     var attentionPanel: NSPanel?
     var attentionButton: NSButton?
     var attentionText: String?
     var hideAttentionEntirely = false
     var homeURL: URL!
+    var updates: UpdateFlow!
     var nativeProbe: PipNativeProbe?
     var isolatedBackend: IsolatedBackendBridge?
     var backendWireProbe: BackendWireProbe?
@@ -58,6 +74,10 @@ final class Pip: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNavi
         catch { NSApp.terminate(nil); return }
         homeURL = URL(fileURLWithPath: home, isDirectory: true)
         if let data = try? Data(contentsOf: homeURL.appendingPathComponent("shortcut.json")), let saved = try? JSONDecoder().decode(SummonShortcut.self, from: data) { shortcut = saved }
+        magic = MagicSetting.load(from: homeURL)
+        windowSetting = WindowSetting.load(from: homeURL); mostHeight = windowSetting.most; windowSize.width = windowSetting.width
+        UpdateFiles.recordLaunch(home: homeURL, version: UpdateFlow.version)
+        updates = UpdateFlow(home: homeURL) { [weak self] in self?.stop() }
         instanceFD = Darwin.open(home + "/native.lock", O_CREAT | O_RDWR, 0o600)
         guard instanceFD >= 0, flock(instanceFD, LOCK_EX | LOCK_NB) == 0 else { NSApp.terminate(nil); return }
         NSApp.setActivationPolicy(.accessory)
@@ -70,7 +90,7 @@ final class Pip: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNavi
         web = WKWebView(frame: .zero, configuration: config)
         web.navigationDelegate = self
         web.setValue(false, forKey: "drawsBackground")
-        panel = SpellPanel(contentRect: NSRect(x: 0, y: 0, width: 660, height: 430), styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
+        panel = SpellPanel(contentRect: NSRect(x: 0, y: 0, width: windowSize.width + PanelGeometry.gap + PanelGeometry.figure, height: PanelGeometry.smallestHeight + PanelGeometry.feet), styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
         panel.level = .floating
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         panel.hidesOnDeactivate = false
@@ -78,7 +98,15 @@ final class Pip: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNavi
         panel.isOpaque = false
         panel.backgroundColor = .clear
         panel.hasShadow = true
-        panel.contentView = web
+        let container = NSView(frame: .zero)
+        backdrop = NSVisualEffectView(frame: .zero)
+        backdrop.material = .popover; backdrop.blendingMode = .behindWindow; backdrop.state = .active
+        backdrop.maskImage = Pip.roundedMask(radius: 9)
+        web.autoresizingMask = [.width, .height]
+        container.addSubview(backdrop); container.addSubview(web)
+        web.frame = container.bounds
+        panel.contentView = container
+        placeBackdrop()
         panel.setAccessibilityLabel("Pip personal assistant")
         let ui = resources.appendingPathComponent("web/index.html")
         web.loadFileURL(ui, allowingReadAccessTo: resources.appendingPathComponent("web"))
@@ -91,6 +119,7 @@ final class Pip: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNavi
         menu.addItem(withTitle: "Hide Pip entirely (keep work running)", action: #selector(hideEntirely), keyEquivalent: "").target = self
         menu.addItem(withTitle: "Settings", action: #selector(settings), keyEquivalent: "").target = self
         menu.addItem(withTitle: "Pause / stop work", action: #selector(stop), keyEquivalent: "").target = self
+        menu.addItem(withTitle: "Check for Updates…", action: #selector(checkForUpdates), keyEquivalent: "").target = self
         menu.addItem(.separator())
         menu.addItem(withTitle: "Quit Pip", action: #selector(quit), keyEquivalent: "q").target = self
         item.menu = menu
@@ -119,18 +148,20 @@ final class Pip: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNavi
             backendWireProbe = BackendWireProbe(host: self, output: URL(fileURLWithPath: directory))
         }
         startService()
+        updates.checkWhenTestRequests()
         if ProcessInfo.processInfo.environment["PIP_SHOW_ON_LAUNCH"] == "1" { summon() }
     }
     func startService() {
         let process = Process()
-        process.executableURL = URL(fileURLWithPath: resources.appendingPathComponent("node-path.txt").path)
-        // The build records the exact Node executable, never an account or shell command.
-        if let path = try? String(contentsOf: resources.appendingPathComponent("node-path.txt"), encoding: .utf8) { process.executableURL = URL(fileURLWithPath: path.trimmingCharacters(in: .whitespacesAndNewlines)) }
+        // A release app carries its own Node next to the Pip executable. A developer build records the exact Node
+        // executable it was built with, never an account or shell command.
+        if let bundled = Bundle.main.url(forAuxiliaryExecutable: "node") { process.executableURL = bundled }
+        else if let path = try? String(contentsOf: resources.appendingPathComponent("node-path.txt"), encoding: .utf8) { process.executableURL = URL(fileURLWithPath: path.trimmingCharacters(in: .whitespacesAndNewlines)) }
+        else { deliver(["kind":"disconnected", "payload":["message":"Pip’s local service could not start."]]); return }
         process.arguments = ["--disable-warning=ExperimentalWarning", resources.appendingPathComponent("runtime/service.js").path]
         process.currentDirectoryURL = resources
         var env = ProcessInfo.processInfo.environment
         env["PIP_NATIVE"] = "1"
-        if let path = try? String(contentsOf: resources.appendingPathComponent("claude-path.txt"), encoding: .utf8) { env["PIP_CLAUDE_PATH"] = path.trimmingCharacters(in: .whitespacesAndNewlines) }
         process.environment = env
         let stdin = Pipe(); let stdout = Pipe(); let stderr = Pipe()
         process.standardInput = stdin; process.standardOutput = stdout; process.standardError = stderr
@@ -205,7 +236,7 @@ final class Pip: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNavi
                 let opened = NSWorkspace.shared.open(url); status = opened ? "succeeded" : "failed-known"; receipt = opened ? "Opened the approved link." : "The link could not open."
             }
         case "app.open":
-            if let bundle = action["bundleId"] as? String, ["com.apple.iCal", "com.apple.reminders", "com.apple.TextEdit", "com.apple.finder"].contains(bundle), let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundle) {
+            if let bundle = action["bundleId"] as? String, bundle.count <= 200, bundle.range(of: "^[A-Za-z0-9][A-Za-z0-9-]*(\\.[A-Za-z0-9-]+)+$", options: .regularExpression) != nil, let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundle) {
                 NSWorkspace.shared.openApplication(at: url, configuration: NSWorkspace.OpenConfiguration()) { [weak self] app, _ in
                     DispatchQueue.main.async { self?.send("receipt", ["id":id,"status":app == nil ? "failed-known" : "succeeded", "receipt":app == nil ? "The application could not open." : "Opened the approved application."]) }
                 }; return
@@ -237,7 +268,10 @@ final class Pip: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNavi
         summonMenuItem?.title = "Summon Pip  " + shortcut.label
     }
     func nativeStatus() {
-        deliver(["kind":"nativeStatus", "payload":["hotkey":hotkeyStatus,"letter":shortcut.letter,"registered":hotkey != nil,"reducedMotion":NSWorkspace.shared.accessibilityDisplayShouldReduceMotion]])
+        let solid = PanelGeometry.solid(reduceTransparency: NSWorkspace.shared.accessibilityDisplayShouldReduceTransparency, increaseContrast: NSWorkspace.shared.accessibilityDisplayShouldIncreaseContrast)
+        backdrop?.isHidden = solid
+        let visibleHeight = Double((panel.screen ?? NSScreen.main)?.visibleFrame.height ?? 0)
+        deliver(["kind":"nativeStatus", "payload":["hotkey":hotkeyStatus,"letter":shortcut.letter,"registered":hotkey != nil,"reducedMotion":NSWorkspace.shared.accessibilityDisplayShouldReduceMotion,"solid":solid,"visibleHeight":visibleHeight,"magic":magic.level.rawValue,"windowWidth":windowSize.width,"mostHeight":mostHeight ?? 0]])
     }
     func setupAttentionPanel() {
         let badge = NSPanel(contentRect: NSRect(x:0,y:0,width:176,height:164), styleMask:[.borderless,.nonactivatingPanel], backing:.buffered, defer:false)
@@ -262,35 +296,92 @@ final class Pip: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNavi
         attentionButton?.title = text; attentionButton?.setAccessibilityLabel("Open Pip: " + text)
         badge.orderFrontRegardless() // Non-key attention only: never activate or open the popup.
     }
+    func placeBackdrop() { backdrop?.frame = PanelGeometry.backdrop(windowWidth: Double(windowSize.width), windowHeight: Double(windowSize.height)) }
+    /// A stretchable rounded rectangle that clips the backdrop to the window's corners.
+    static func roundedMask(radius: CGFloat) -> NSImage {
+        let side = radius * 2 + 1
+        let image = NSImage(size: NSSize(width: side, height: side), flipped: false) { rect in NSColor.black.setFill(); NSBezierPath(roundedRect: rect, xRadius: radius, yRadius: radius).fill(); return true }
+        image.capInsets = NSEdgeInsets(top: radius, left: radius, bottom: radius, right: radius); image.resizingMode = .stretch
+        return image
+    }
+    /// The desktop under Pip, dimmed while Rich magic calls him. It never takes a click.
+    func setDim(_ on: Bool) {
+        if !on { guard let dim = dimPanel, dim.isVisible else { return }
+            NSAnimationContext.runAnimationGroup({ $0.duration = 0.16; dim.animator().alphaValue = 0 }, completionHandler: { [weak dim] in if dim?.alphaValue == 0 { dim?.orderOut(nil) } })
+            return }
+        guard panel.isVisible else { return }
+        let dim = dimPanel ?? {
+            let made = NSPanel(contentRect: .zero, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
+            made.level = .floating; made.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .transient]; made.ignoresMouseEvents = true
+            made.isReleasedWhenClosed = false; made.hidesOnDeactivate = false; made.isOpaque = false; made.hasShadow = false
+            made.backgroundColor = NSColor.black.withAlphaComponent(0.42); made.setAccessibilityElement(false)
+            dimPanel = made; return made
+        }()
+        dim.setFrame((panel.screen ?? NSScreen.main!).frame, display: false)
+        dim.alphaValue = 0; dim.order(.below, relativeTo: panel.windowNumber)
+        NSAnimationContext.runAnimationGroup { $0.duration = 0.12; dim.animator().alphaValue = 1 }
+    }
+    /// The pointer feed runs only while Pip is on screen and sends a position only when it changes, so a still pointer costs the page nothing.
+    func startPointer() {
+        guard pointerTimer == nil else { return }
+        pointerSent = false; lastPointer = nil
+        let timer = Timer(timeInterval: 1.0 / 60.0, repeats: true) { [weak self] _ in self?.feedPointer() }
+        RunLoop.main.add(timer, forMode: .common); pointerTimer = timer
+    }
+    func stopPointer() { pointerTimer?.invalidate(); pointerTimer = nil; lastPointer = nil; pointerSent = false }
+    func feedPointer() {
+        guard panel.isVisible else { return }
+        let screen = (panel.screen ?? NSScreen.main!).frame
+        if let at = PointerFeed.position(mouse: NSEvent.mouseLocation, panel: panel.frame, screen: screen) {
+            if pointerSent, lastPointer == at { return }
+            lastPointer = at; pointerSent = true
+            deliver(["kind":"pointer", "payload":["x":Double(at.x), "y":Double(at.y)]])
+        } else if lastPointer != nil || !pointerSent {
+            lastPointer = nil; pointerSent = true
+            deliver(["kind":"pointer", "payload":["off":true]])
+        }
+    }
     func hidePopup(restorePrevious: Bool) {
         cancelDictation()
+        hideAsked = false; stopPointer(); setDim(false)
         let wasVisible = panel.isVisible
         deliver(["kind":"popupHidden","payload":[:]])
         panel.orderOut(nil); updateAttention()
         if restorePrevious && wasVisible { previous?.activate(options:[]) }
     }
     @objc func hideEntirely() { hideAttentionEntirely = true; hidePopup(restorePrevious:true); attentionPanel?.orderOut(nil) }
-    @objc func toggle() { if panel.isVisible { hide() } else { summon() } }
+    @objc func toggle() { if panel.isVisible { requestHide() } else { summon() } }
+    /// Hiding is first asked of the page, so the embers can gather into the lantern; the page answers with hide. If it does not answer within a second, Pip hides anyway.
+    func requestHide() {
+        guard panel.isVisible else { return }
+        if hideAsked { hide(); return }
+        hideAsked = true
+        deliver(["kind":"hideRequest", "payload":[:]])
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in if self?.hideAsked == true { self?.hide() } }
+    }
     func summon() {
         if !panel.isVisible { previous = NSWorkspace.shared.frontmostApplication }
         hideAttentionEntirely = false; attentionPanel?.orderOut(nil)
         let screen = NSScreen.screens.first { NSMouseInRect(NSEvent.mouseLocation, $0.frame, false) } ?? NSScreen.main!
         let frame = screen.visibleFrame
-        let width = min(660, frame.width - 32); let height = min(panel.frame.height, frame.height - 48)
-        panel.setFrame(NSRect(x: frame.maxX - width - 16, y: frame.minY + 24, width: width, height: height), display: true)
+        panel.setFrame(PanelGeometry.panel(visible: frame, windowWidth: windowSize.width, windowHeight: windowSize.height, most: mostHeight), display: true)
+        placeBackdrop()
+        nativeStatus()
         NSApp.activate(ignoringOtherApps: true)
         panel.makeKeyAndOrderFront(nil)
         web.callAsyncJavaScript("document.querySelector('#composer').focus()", arguments: [:], in: nil, in: .page, completionHandler: nil)
         deliver(["kind":"summon", "payload":[:]])
+        startPointer()
     }
     func hide() { hidePopup(restorePrevious:true) }
     func handleEscape() {
         web.callAsyncJavaScript("return window.pipEscape ? window.pipEscape() : false", arguments:[:], in:nil, in:.page) { [weak self] result in
             if case .success(let value) = result, value as? Bool == true { return }
-            self?.hide()
+            self?.requestHide()
         }
     }
     @objc func settings() { summon(); deliver(["kind":"settings", "payload":[:]]) }
+    @objc func checkForUpdates() { updates.check() }
     @objc func stop() { cancelDictation(); send("stop") }
     @objc func quit() { NSApp.terminate(nil) }
     func applicationWillTerminate(_ notification: Notification) { dictation.cancel(); if let hotkey { UnregisterEventHotKey(hotkey) }; try? input?.close(); child?.terminate(); if instanceFD >= 0 { close(instanceFD) } }
@@ -304,6 +395,74 @@ final class Pip: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNavi
     func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction, decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
         let allowed = navigationAction.request.url?.standardizedFileURL == resources.appendingPathComponent("web/index.html").standardizedFileURL
         decisionHandler(allowed ? .allow : .cancel)
+    }
+    /// Setup asks once for all six macOS permissions, in order, so dialogs never stack. Each ask shows its own
+    /// system prompt or opens its own System Settings pane; nothing here can grant access, only the captain can.
+    func permissionAsks() -> [PermissionsSetup.Ask] {
+        return [
+            .init(id: "accessibility", prompt: { @Sendable in
+                AXIsProcessTrustedWithOptions([kAXTrustedCheckOptionPrompt.takeUnretainedValue(): true] as CFDictionary) ? .granted : .notGranted
+            }),
+            .init(id: "screen-recording", prompt: { @Sendable in
+                CGRequestScreenCaptureAccess() ? .granted : .notGranted
+            }),
+            .init(id: "automation", prompt: { @Sendable in await Pip.askAppleEventsPermission() }),
+            .init(id: "full-disk-access", prompt: { @Sendable in
+                // No API can prompt for Full Disk Access; the pane opens once and Pip records what it can read.
+                if let pane = URL(string: "x-apple.systempreferences:com.apple.settings.privacy?Privacy_AllFiles") { NSWorkspace.shared.open(pane) }
+                try? await Task.sleep(nanoseconds: 1_500_000_000)
+                return FileManager.default.isReadableFile(atPath: NSHomeDirectory() + "/Library/Application Support/com.apple.TCC/TCC.db") ? .granted : .notGranted
+            }),
+            .init(id: "microphone", prompt: { @Sendable in await withCheckedContinuation { continuation in
+                AVCaptureDevice.requestAccess(for: .audio) { granted in continuation.resume(returning: granted ? .granted : .notGranted) }
+            } }),
+            .init(id: "notifications", prompt: { @Sendable in await withCheckedContinuation { continuation in
+                UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { granted, _ in
+                    continuation.resume(returning: granted ? .granted : .notGranted)
+                }
+            } }),
+        ]
+    }
+    /// A harmless Apple event to System Events is what makes macOS show the Automation prompt; its outcome is the answer.
+    static func askAppleEventsPermission() async -> MacPermissionState {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
+        process.arguments = ["-e", "tell application id \"com.apple.systemevents\" to get name of first application process"]
+        let pipe = Pipe(); process.standardOutput = pipe; process.standardError = pipe
+        do { try process.run() } catch { return .unknown }
+        return await withCheckedContinuation { continuation in
+            process.terminationHandler = { process in
+                continuation.resume(returning: process.terminationStatus == 0 ? .granted : .notGranted)
+            }
+        }
+    }
+    func notificationPermissionState() async -> MacPermissionState {
+        await withCheckedContinuation { continuation in
+            UNUserNotificationCenter.current().getNotificationSettings { settings in
+                let authorized = settings.authorizationStatus == .authorized || settings.authorizationStatus == .provisional
+                continuation.resume(returning: PermissionsSetup.notificationState(authorized: authorized, notDetermined: settings.authorizationStatus == .notDetermined))
+            }
+        }
+    }
+    /// The setup panel's answer: live checks where they cannot prompt, recorded answers where only the ask can decide,
+    /// saved once, and delivered to the page so the view shows exactly what this Mac now allows.
+    func handlePermissions(asking: Bool) async {
+        var record = PermissionsSetup.load(from: homeURL) ?? PermissionsSetup.fresh()
+        if asking {
+            record.askedAt = Date()
+            record.state.merge(await PermissionsSetup.run(asks: permissionAsks())) { _, asked in asked }
+        }
+        var live = PermissionsSetup.checkWithoutPrompting()
+        live["notifications"] = await notificationPermissionState()
+        let merged = PermissionsSetup.report(record: record, live: live)
+        try? PermissionsSetup.save(merged, to: homeURL)
+        let rows = PermissionsSetup.rows(record: merged).map { row in
+            ["id": row.permission.id, "label": row.permission.label, "why": row.permission.why, "state": row.state.rawValue]
+        }
+        deliver(["kind": "permissionsState", "payload": [
+            "askedAt": merged.askedAt.map { ISO8601DateFormatter().string(from: $0) } ?? "",
+            "permissions": rows,
+        ]])
     }
     /// The key is typed into a native secure field and goes straight to the service over the private pipe.
     /// It never passes through WKWebView JavaScript, a log, or the saved state.
@@ -335,10 +494,33 @@ final class Pip: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNavi
             if payload["session"] as? String == dictationSession { cancelDictation() }
         case "hide": hide()
         case "resize":
-            if let h = payload["height"] as? Double, h.isFinite { var f = panel.frame; let visible = (panel.screen ?? NSScreen.main!).visibleFrame; let height = min(max(h, 315), visible.height - 48); f.origin.y = min(max(f.origin.y,visible.minY+16),visible.maxY-height-16); f.size.height = height; panel.setFrame(f, display:true) }
+            // The page says how tall its chat window is, and its width only while the person drags the left edge. The panel is that plus Pip's figure and the room under his feet, and never moves its bottom or its right side.
+            // A missing width keeps the current one: a measurement taken before the web view has a size must never narrow the window.
+            if let h = payload["windowHeight"] as? Double, h.isFinite {
+                let visible = (panel.screen ?? NSScreen.main!).visibleFrame
+                if let chosen = payload["mostHeight"] as? Double, chosen.isFinite { mostHeight = chosen > 0 ? chosen : nil }
+                let w = PanelGeometry.width(requested: payload["windowWidth"] as? Double, current: windowSize.width, visibleWidth: Double(visible.width))
+                let frame = PanelGeometry.panel(visible: visible, windowWidth: w, windowHeight: h, most: mostHeight)
+                windowSize = CGSize(width: frame.width - PanelGeometry.gap - PanelGeometry.figure, height: frame.height - PanelGeometry.feet)
+                panel.setFrame(frame, display: true); placeBackdrop()
+            }
+        case "configureWindow":
+            // The person let go of an edge: remember the width and the most height on this Mac.
+            guard Set(payload.keys) == ["width", "most"], let width = payload["width"] as? Double, width.isFinite, let most = payload["most"] as? Double, most.isFinite else { return }
+            let visible = (panel.screen ?? NSScreen.main!).visibleFrame
+            let selected = WindowSetting(width: PanelGeometry.width(requested: width, current: windowSize.width, visibleWidth: Double(visible.width)), most: most > 0 ? most : nil)
+            do { try selected.save(to: homeURL); windowSetting = selected; mostHeight = selected.most }
+            catch { deliver(["kind":"error","payload":["message":"The window size could not be saved. Pip will open at its previous size."]]) }
         case "saveComposer":
             send(kind, payload, id: id)
             if let text = payload["text"] as? String { nativeProbe?.composerChanged(text) }
+        case "configureMagic":
+            guard Set(payload.keys) == ["level"], let raw = payload["level"] as? String, let level = MagicLevel(rawValue: raw) else { return }
+            do { let selected = MagicSetting(level: level); try selected.save(to: homeURL); magic = selected; nativeStatus() }
+            catch { deliver(["kind":"error","payload":["message":"The Magic setting could not be saved. The previous setting is unchanged."]]) }
+        case "dim":
+            guard Set(payload.keys) == ["on"], let on = payload["on"] as? Bool else { return }
+            setDim(on)
         case "configureShortcut":
             do {
                 guard let letter = payload["letter"] as? String else { return }
@@ -349,10 +531,12 @@ final class Pip: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNavi
         case "provider.enterKey":
             guard let provider = payload["id"] as? String, provider == "deepseek" else { return }
             enterProviderKey(provider)
+        case "permissions.setup", "permissions.status":
+            Task { await self.handlePermissions(asking: kind == "permissions.setup") }
         case "provider.allow", "provider.withdraw", "provider.select", "provider.backup", "provider.signIn", "provider.cancelSignIn", "provider.remove":
             send(kind, payload, id: id)
-        case "snapshot", "submit", "stop", "propose", "approve", "cancel", "saveDraft", "backendQuery", "reconcile", "tracker", "feedback.save", "feedback.correct", "work.backlog", "browser":
-            if kind == "stop" || kind == "submit" { cancelDictation() }
+        case "snapshot", "submit", "steer", "stop", "propose", "approve", "cancel", "saveDraft", "backendQuery", "reconcile", "tracker", "feedback.save", "feedback.correct", "work.backlog", "browser":
+            if kind == "stop" || kind == "submit" || kind == "steer" { cancelDictation() }
             send(kind, payload, id: id)
         default: break
         }

@@ -15,13 +15,13 @@ test('dictation reviews text without sending partials and preserves typed drafts
  await expect(composer).toBeFocused();await composer.fill('Please summarise:');
  expect(messages.some(m=>m.kind==='dictation.start')).toBe(false);
  const rectangle=await composer.boundingBox();
- await expect.poll(()=>messages.filter(m=>m.kind==='resize').at(-1)?.payload.height).toBeTruthy();
- const compactHeight=messages.filter(m=>m.kind==='resize').at(-1).payload.height;
+ await expect.poll(()=>messages.filter(m=>m.kind==='resize').at(-1)?.payload.windowHeight).toBeTruthy();
+ const compactHeight=messages.filter(m=>m.kind==='resize').at(-1).payload.windowHeight;
  await talk.click();await expect.poll(latest).toBeTruthy();const denied=latest();
  await receive({session:denied,state:'unavailable',message:'Microphone and Speech Recognition access are not both granted. Pip has requested neither. Keep typing; a later consented microphone check is needed.'});
  await expect(page.locator('#dictation-status')).toContainText('requested neither');
  await expect(composer).toHaveValue('Please summarise:');
- await expect.poll(()=>messages.filter(m=>m.kind==='resize').at(-1)?.payload.height).toBeGreaterThan(compactHeight);
+ await expect.poll(()=>messages.filter(m=>m.kind==='resize').at(-1)?.payload.windowHeight).toBeGreaterThan(compactHeight);
  await capture('dictation-unavailable');
  await talk.click();await expect.poll(latest).not.toBe(denied);const first=latest();
  await page.evaluate(session=>(window as any).pipReceive({kind:'dictationCancelled',payload:{session}}),denied);
@@ -37,13 +37,14 @@ test('dictation reviews text without sending partials and preserves typed drafts
  const transcript=page.getByLabel('Transcript — review before adding');await expect(transcript).toBeEditable();await transcript.fill('the meeting notes from today');
  await receive({session:first,state:'capturing',text:'late partial',message:'late'});await expect(transcript).toHaveValue('the meeting notes from today');
  await capture('dictation-review-fixture');
- await page.getByRole('button',{name:'Add to composer',exact:true}).click();
+ await page.getByRole('button',{name:'Add to message',exact:true}).click();
  await expect(composer).toHaveValue('Please summarise:\nthe meeting notes from today');
  expect(messages.some(m=>m.kind==='submit')).toBe(false);
- const after=await composer.boundingBox();expect(after!.x).toBe(rectangle!.x);expect(after!.y).toBe(rectangle!.y);
+ const bottom=async()=>{const box=(await composer.boundingBox())!;return box.y+box.height;};
+ await expect.poll(bottom).toBe(rectangle!.y+rectangle!.height);expect((await composer.boundingBox())!.x).toBe(rectangle!.x);
  await expect(page.locator('#status')).toContainText('Nothing was sent');
  await capture('dictation-ready-to-ask');
- await page.getByRole('button',{name:'Ask Pip',exact:true}).click();
+ await page.getByRole('button',{name:'Send',exact:true}).click();
  await expect.poll(()=>messages.filter(m=>m.kind==='submit').length).toBe(1);
  expect(messages.find(m=>m.kind==='submit').payload.request).toBe('Please summarise:\nthe meeting notes from today');
  // Cancellation, focus loss and native lifecycle signals forget speech, not typed text.
@@ -53,20 +54,20 @@ test('dictation reviews text without sending partials and preserves typed drafts
   await receive({session:id,state:'capturing',text:'Do not send this partial.',message:'Fixture partial'});
   if(ending==='escape')await composer.press('Escape');
   if(ending==='native')await page.evaluate(session=>(window as any).pipReceive({kind:'dictationCancelled',payload:{session}}),id);
-  if(ending==='hidden'){await page.evaluate(()=>(window as any).pipReceive({kind:'popupHidden',payload:{}}));await expect(page.locator('.panel')).toHaveCSS('clip-path',/^inset\(100% 0(px|%) 0(px|%) 100%\)$/);await page.evaluate(()=>(window as any).pipReceive({kind:'summon',payload:{}}));} // The host always summons before the folded page is shown again.
+  if(ending==='hidden'){await page.evaluate(()=>(window as any).pipReceive({kind:'popupHidden',payload:{}}));await expect(page.locator('#win')).toHaveCSS('opacity','0');await page.evaluate(()=>(window as any).pipReceive({kind:'summon',payload:{}}));} // The host always summons before the folded page is shown again.
   if(ending==='blur')await page.evaluate(()=>window.dispatchEvent(new Event('blur')));
   await expect(page.locator('#dictation')).toBeHidden();await expect(composer).toHaveValue('Keep my typed draft.');
   await receive({session:id,state:'review',text:'stale completion',message:'late'});await expect(page.locator('#dictation')).toBeHidden();
  }
  const previous=latest();await talk.click();await expect.poll(latest).not.toBe(previous);const empty=latest();
  await receive({session:empty,state:'review',text:'',message:'No speech was recognised. Nothing was sent.'});
- await page.getByRole('button',{name:'Add to composer',exact:true}).click();await expect(page.locator('#dictation-status')).toContainText('no transcript');
+ await page.getByRole('button',{name:'Add to message',exact:true}).click();await expect(page.locator('#dictation-status')).toContainText('no transcript');
  await transcript.fill('Meeting notes. '.repeat(1000).slice(0,12000));
- await page.getByRole('button',{name:'Add to composer',exact:true}).click();await expect(page.locator('#dictation-status')).toContainText('too long');
+ await page.getByRole('button',{name:'Add to message',exact:true}).click();await expect(page.locator('#dictation-status')).toContainText('too long');
  await expect(composer).toHaveValue('Keep my typed draft.');await page.getByRole('button',{name:'Cancel dictation',exact:true}).click();
  expect(messages.filter(m=>m.kind==='submit').length).toBe(1);
  expect(messages.filter(m=>m.kind==='saveComposer').some(m=>m.payload.text.includes('Do not send'))).toBe(false);
- console.log(JSON.stringify({surface:'production composer',speech:'stand-in native events only',typedDraftPreserved:true,partialSubmitted:false,explicitAskCount:1,composerBefore:rectangle,composerAfter:after,lateEventsIgnored:true}));
+ console.log(JSON.stringify({surface:'production composer',speech:'stand-in native events only',typedDraftPreserved:true,partialSubmitted:false,explicitAskCount:1,composerBefore:rectangle,lateEventsIgnored:true}));
 });
 
 // Intent: ELF-8 truthful unavailable states; a web view is not a speech engine.
@@ -85,8 +86,10 @@ test('without the native bridge Talk explains unavailable capture and typing sti
 // Intent: ELF-8 truthful failure and usable transcript controls in the native
 // host's requested window height, not just a generously sized browser preview.
 test('native height includes transcript review and an unresponsive start stays unconfirmed',async({page})=>{
- const messages:any[]=[];await page.setViewportSize({width:472,height:720});
+ const messages:any[]=[];await page.setViewportSize({width:756,height:720});
  await page.clock.install();await page.exposeFunction('pipTestBridge',(m:any)=>messages.push(m));await page.goto('/');
+ // The window's cap is a share of the screen, which the host reports; the viewport below stands in for the panel only.
+ await page.evaluate(()=>(window as any).pipReceive({kind:'nativeStatus',payload:{hotkey:'⌘⇧E',visibleHeight:720}}));
  await page.locator('#composer').fill('Keep my draft.');await page.getByRole('button',{name:'Talk',exact:true}).click();
  await expect.poll(()=>messages.find(m=>m.kind==='dictation.start')?.payload.session).toBeTruthy();
  const id=messages.find(m=>m.kind==='dictation.start').payload.session;
@@ -100,9 +103,9 @@ test('native height includes transcript review and an unresponsive start stays u
  const sizes=messages.filter(m=>m.kind==='resize').length;
  await page.evaluate(payload=>(window as any).pipReceive({kind:'dictation',payload}),{session:next,state:'review',text:'the meeting notes',message:'Fixture stopped transcript. Review before Ask; no microphone was used.'});
  await expect.poll(()=>messages.filter(m=>m.kind==='resize').length).toBeGreaterThan(sizes);
- const requested=messages.filter(m=>m.kind==='resize').at(-1).payload.height;
- await page.setViewportSize({width:472,height:Math.round(Math.min(852,Math.max(315,requested)))});
- await expect(page.getByRole('button',{name:'Add to composer',exact:true})).toBeInViewport({ratio:1});
+ const requested=messages.filter(m=>m.kind==='resize').at(-1).payload.windowHeight;
+ await page.setViewportSize({width:756,height:Math.round(requested)+8});
+ await expect(page.getByRole('button',{name:'Add to message',exact:true})).toBeInViewport({ratio:1});
  await expect(page.getByRole('button',{name:'Cancel dictation',exact:true})).toBeInViewport({ratio:1});
  await expect(page.locator('#composer')).toBeInViewport({ratio:1});
  await page.getByRole('button',{name:'Cancel dictation',exact:true}).click();

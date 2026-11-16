@@ -14,7 +14,7 @@ window.pipRenderProjects=function renderProjects(root,{state,node,button,proposa
   const links=[];
   root.append(node('h3','Unfinished work'));
   for(const w of state.works.filter(w=>w.status!=='Done'||project?.workIds.includes(w.id))){const label=node('label'),input=node('input');input.type='checkbox';input.style.width='auto';input.checked=project?.workIds.includes(w.id)??false;label.append(input,document.createTextNode(w.request));root.append(label);links.push({id:w.id,input});}
-  root.append(node('p','Saving permits this summary to be offered to '+(window.pipProviderName||'Claude')+' only when you explicitly choose it for a request. It starts no work.'));
+  root.append(node('p','Saving permits this summary to be offered to '+(window.pipProviderName||'your model')+' only when you explicitly choose it for a request. It starts no work.'));
   const error=node('p');error.setAttribute('role','alert');root.append(error);
   root.append(button('Review project context',()=>{try{
    const parsed=pins.value.trim()?pins.value.trim().split('\n').map(line=>{const parts=line.split('|').map(s=>s.trim());if(parts.length!==3)throw Error('Each reference needs a title, HTTPS address and check date.');return {title:parts[0],reference:parts[1],checkedAt:parts[2]};}):[];

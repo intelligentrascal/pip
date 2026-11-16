@@ -5,11 +5,9 @@ import path from 'node:path';
 import { spawn } from 'node:child_process';
 import { createInterface } from 'node:readline';
 import { randomUUID } from 'node:crypto';
-import { createSdkMcpServer } from '@anthropic-ai/claude-agent-sdk';
-import { Client } from '@modelcontextprotocol/sdk/client/index.js';
-import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
-import { modelBackendTools, backendToolNames } from '../runtime/model-backends.js';
-import { openHost, type Host } from '../runtime/pi-durable-adapter.js';
+import { openHost } from '../runtime/pi-durable-adapter.js';
+import { fauxEngine, said, calls } from './helpers/faux-engine.js';
+import { until, finished } from './helpers/ask.js';
 import { type BackendPort } from '../runtime/backend-contracts.js';
 import { buildBackend, fixtureHome, nativePeer, wireDue, wall, scheduleChange, reminderValue } from './helpers/backend-process.js';
 
@@ -62,28 +60,28 @@ test('production approval flow wires isolated alarms and distinct note review',{
   console.log(JSON.stringify({scenario:'approved-alarm-and-note-review',occurrence:plan.id,notification:due.notification,noteUnchanged:true,isolatedOnly:true}));
  }finally{await host.close();await peer.close();}
 });
-// Intent: model wiring uses the real SDK tool protocol but grants no model execution/approval capability.
-test('SDK model tools prepare a real isolated proposal and the normal worker waits for separate approval',{timeout:30000},async()=>{
- const f=await fixtureHome(),peer=nativePeer(f.env);let host:Host;let completed!:()=>void;const done=new Promise<void>(r=>{completed=r;});
- host=await openHost({home:f.home,fixture:true,backend:peer.client,changed:()=>{if(host)void host.snapshot().then(s=>{if(s.works[0]?.status==='Done')completed();});},provider:async(_request,_memory,_signal,context)=>{
-  assert.ok(context?.backend);assert.equal('execute' in context.backend,false);
-  const server=createSdkMcpServer({name:'pip-isolated',version:'1.0.0',tools:modelBackendTools(context.backend)});
-  const [a,b]=InMemoryTransport.createLinkedPair();await server.instance.connect(a);const client=new Client({name:'Pip isolated protocol check',version:'1.0.0'});await client.connect(b);
-  try{
-   const names=(await client.listTools()).tools.map(t=>t.name).sort();assert.deepEqual(names,[...backendToolNames].sort());
-   const refused:any=await client.callTool({name:'prepare_backend_action',arguments:{action:{type:'alarm.schedule',alarm:{reminderId:'tea',title:'Pick up tea',at:Date.now(),zone:'Europe/Madrid',owner:'local',nativeID:'must-not-be-silently-dropped'}}}});assert.equal(refused.isError,true);
-   const call=async(name:string,args:any)=>{const result:any=await client.callTool({name,arguments:args});assert.notEqual(result.isError,true,JSON.stringify(result));return JSON.parse(result.content[0].text).result;};
-   const targets=await call('targets',{kind:'reminder'});const resolved=await call('resolve_due',{wall:wall(null)});
-   const prepared=await call('prepare_backend_action',{action:{type:'schedule.mutate',change:scheduleChange(targets[0],reminderValue('Pick up tea',resolved.due))}});
-   assert.equal(prepared.executed,false);assert.equal(prepared.requiresApproval,true);
-   return {kind:'answer',title:'Isolated protocol fixture',text:'Prepared a fixture reminder; nothing has been saved.',sources:[],model:'Fixture provider — not live Claude',sessionId:context.sessionId,proposal:prepared.action};
-  }finally{await client.close();await server.instance.close();}
- }});
+// Intent: ELF-56 the model's isolated Calendar and Reminders tools can read and prepare; only the captain's separate approval executes.
+test('the conversation prepares a real isolated proposal with tools and the worker waits for separate approval',{timeout:30000},async()=>{
+ const f=await fixtureHome(),peer=nativePeer(f.env);const {faux,engine}=fauxEngine();
+ /** The JSON the previous tool call returned to the model, and whether it was an error. */
+ const result=(ctx:{messages:{role:string;isError?:boolean;content?:unknown}[]})=>{const m=[...ctx.messages].reverse().find(m=>m.role==='toolResult')!;const text=(m.content as {text:string}[])[0].text;return {error:m.isError===true,text,json:()=>JSON.parse(text).result};};
+ let targets:any;let resolved:any;let prepared:any;
+ faux.setResponses([
+  calls(['prepare_backend_action',{action:{type:'alarm.schedule',alarm:{reminderId:'tea',title:'Pick up tea',at:Date.now(),zone:'Europe/Madrid',owner:'local',nativeID:'must-not-be-silently-dropped'}}}]),
+  ctx=>{assert.equal(result(ctx).error,true,'an undeclared field is refused to the model');return calls(['targets',{kind:'reminder'}]);},
+  ctx=>{targets=result(ctx).json();return calls(['resolve_due',{wall:wall(null)}]);},
+  ctx=>{resolved=result(ctx).json();return calls(['prepare_backend_action',{action:{type:'schedule.mutate',change:scheduleChange(targets[0],reminderValue('Pick up tea',resolved.due))}}]);},
+  ctx=>{prepared=result(ctx).json();assert.equal(prepared.executed,false);assert.equal(prepared.requiresApproval,true);return calls(['propose_action',{action:prepared.action}]);},
+  said('Prepared a fixture reminder; nothing has been saved.'),
+ ]);
+ const host=await openHost({home:f.home,fixture:true,backend:peer.client,engine});
  try{
-  await host.submit(randomUUID(),'Prepare Pick up tea in the explicitly selected fixture reminders list.');await done;
-  const p=(await host.snapshot()).proposals[0];assert.equal(p.status,'proposed');assert.equal(peer.requests.some(m=>m.payload.op==='execute'),false);
+  await host.submit('prepare-tea','Prepare Pick up tea in the explicitly selected fixture reminders list.');
+  const state=await until(host,finished('prepare-tea'));assert.equal(state.works[0].status,'Done');
+  assert.equal(JSON.stringify(state.works[0].result?.proposal),JSON.stringify(prepared.action));
+  const p=state.proposals[0];assert.equal(p.status,'proposed');assert.equal(peer.requests.some(m=>m.payload.op==='execute'),false);
   assert.equal((await host.approve(p.id,p.revision,p.digest)).status,'succeeded');
-  console.log(JSON.stringify({scenario:'sdk-model-tool-protocol',proposal:p.id,approvalRequired:true,liveModelInference:false}));
+  console.log(JSON.stringify({scenario:'conversation-tool-protocol',proposal:p.id,approvalRequired:true,liveModelInference:false}));
  }finally{await host.close();await peer.close();}
 });
 // Intent: production service reader must route native replies outside its serial command queue.

@@ -36,11 +36,18 @@ export class FileCredentialStore implements CredentialStore {
 /** Non-secret choices: which provider is active, the one backup, models, and the recorded Allow. */
 export type Allowance={terms:number;at:string};
 export type ProviderSettings={version:1;active:string;backup:string|null;models:Record<string,string>;allowed:Record<string,Allowance>;chatGPTHostId?:string};
-const empty=():ProviderSettings=>({version:1,active:'claude',backup:null,models:{},allowed:{}});
+const empty=():ProviderSettings=>({version:1,active:'openai',backup:null,models:{},allowed:{}});
 export class SettingsStore {
  private chain:Promise<unknown>=Promise.resolve();
  constructor(readonly file:string){}
- read():Promise<ProviderSettings>{return readJSON(this.file,empty()).then(s=>({...empty(),...s}));}
+ read():Promise<ProviderSettings>{return readJSON(this.file,empty()).then(saved=>{
+   const s={...empty(),...saved};
+   // The Claude program route is gone: an old choice of it falls back to the ChatGPT plan, and its Allow is dropped.
+   if(s.active==='claude')s.active='openai';
+   if(s.backup==='claude')s.backup=null;
+   delete s.allowed.claude;delete s.models.claude;
+   return s;
+  });}
  update(fn:(s:ProviderSettings)=>void):Promise<ProviderSettings>{
   const job=async()=>{const s=await this.read();fn(s);await writePrivate(this.file,JSON.stringify(s));return s;};
   const next=this.chain.then(job,job);this.chain=next.catch(()=>{});return next;

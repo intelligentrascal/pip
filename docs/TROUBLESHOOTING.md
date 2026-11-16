@@ -10,6 +10,24 @@ app may own that shortcut; choose a different Command–Shift letter in Settings
 Do not grant Accessibility or Screen Recording just to work around an unproved
 shortcut. Physical global hotkey and ordinary Spaces retain proof limits.
 
+## Pip is still or draws no light
+
+Pip always moves unless Reduce Motion is on. With Reduce Motion in System Settings he holds
+still poses and every Magic effect is off at every level. Otherwise open **More → Settings →
+Magic**: Calm draws only Pip, Balanced adds light and embers around him, and Rich also
+dims the desktop while he arrives. If he does not follow the pointer, move it near the
+window; after 2.5 seconds without movement he looks at the message box or the newest step.
+See [Magic](MAGIC.md). Do not grant Accessibility or Screen Recording for this; the pointer
+position comes from the Mac's ordinary mouse location and is neither stored nor sent.
+
+## The window is the wrong size or looks solid
+
+The chat window opens 600 pt wide by default (or the width you saved) and grows upward with the
+conversation. Drag its left edge for width (420 to 760 pt) and its top edge for the most height;
+both are remembered in `window.json`. The window is see-through at a 92%
+tint; Reduce Transparency or Increase Contrast in System Settings makes it solid. See
+[Lantern](LANTERN.md).
+
 ## The build fails or the app stops after moving the folder
 
 Check the [requirements](INSTALLATION.md). The development app needs its original

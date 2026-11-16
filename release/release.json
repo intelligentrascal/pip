@@ -1,0 +1,13 @@
+{
+  "schema": 1,
+  "product": "Pip",
+  "bundleIdentifier": "io.github.intelligentrascal.pip",
+  "caskToken": "pip-house-elf",
+  "channel": "alpha",
+  "minimumSystemVersion": "14.0",
+  "architecture": "arm64",
+  "copyright": "Copyright © intelligentrascal. MIT licensed.",
+  "repository": "intelligentrascal/pip",
+  "downloadBase": "https://github.com/intelligentrascal/pip/releases/download",
+  "updateFeedURL": "https://raw.githubusercontent.com/intelligentrascal/pip/main/updates/feed.json"
+}

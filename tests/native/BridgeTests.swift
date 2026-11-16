@@ -17,7 +17,7 @@ struct BridgeChecks {
             require(BridgeMessage.parse(attack, isMainFrame: true, source: page, bundledPage: page) == nil)
         }
         // Intent: ELF-8 actual Tracker/Feedback and configurable Command+Shift+E.
-        for (kind,payload) in [("tracker",["view":"about"]), ("feedback.save",["originalWords":"Pip opens on the wrong display"]), ("feedback.correct",["id":"wrong-display"]), ("work.backlog",["request":"Summarise this document later"]), ("configureShortcut",["letter":"e"])] {
+        for (kind,payload) in [("tracker",["view":"about"]), ("feedback.save",["originalWords":"Pip opens on the wrong display"]), ("feedback.correct",["id":"wrong-display"]), ("work.backlog",["request":"Summarise this document later"]), ("configureShortcut",["letter":"e"]), ("steer",["workId":"plan","request":"Mornings only, please."]), ("configureWindow",["width":700,"most":640])] {
             var message = submit; message["kind"] = kind; message["payload"] = payload
             require(BridgeMessage.parse(message,isMainFrame:true,source:page,bundledPage:page)?.kind == kind)
         }
@@ -42,6 +42,36 @@ struct BridgeChecks {
         require(BridgeMessage.parse(browser,isMainFrame:false,source:page,bundledPage:page) == nil)
         require(BridgeMessage.parse(browser,isMainFrame:true,source:URL(string:"https://example.com"),bundledPage:page) == nil)
         for response in ["browserState","browserResult"] { var forged = browser;forged["kind"] = response;require(BridgeMessage.parse(forged,isMainFrame:true,source:page,bundledPage:page) == nil) }
+        // Intent: ELF-56 piece 4 — setup asks once for the six macOS permissions, recorded and reported plainly.
+        require(MacPermissions.all.count == 6)
+        require(MacPermissions.all.map(\.id) == ["accessibility", "screen-recording", "automation", "full-disk-access", "microphone", "notifications"])
+        var permissions = submit; permissions["kind"] = "permissions.setup"
+        require(BridgeMessage.parse(permissions, isMainFrame: true, source: page, bundledPage: page)?.kind == "permissions.setup")
+        permissions["kind"] = "permissions.status"
+        require(BridgeMessage.parse(permissions, isMainFrame: true, source: page, bundledPage: page)?.kind == "permissions.status")
+        var forgedPermissions = submit; forgedPermissions["kind"] = "permissionsState"
+        require(BridgeMessage.parse(forgedPermissions, isMainFrame: true, source: page, bundledPage: page) == nil)
+        let sandbox = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: sandbox, withIntermediateDirectories: true)
+        var record = PermissionsSetup.fresh()
+        record.askedAt = Date(timeIntervalSince1970: 1_700_000_000)
+        record.state = ["automation": .granted, "microphone": .notGranted]
+        try PermissionsSetup.save(record, to: sandbox)
+        require(PermissionsSetup.load(from: sandbox) == record)
+        require(PermissionsSetup.load(from: sandbox.appendingPathComponent("missing")) == nil)
+        // Live checks stand over the recorded ones, but a permission only the ask can answer keeps its recorded state.
+        let merged = PermissionsSetup.report(record: record, live: ["accessibility": .granted, "microphone": .granted])
+        require(merged.state["accessibility"] == .granted && merged.state["microphone"] == .granted && merged.state["automation"] == .granted)
+        let freshRows = PermissionsSetup.rows(record: PermissionsSetup.fresh())
+        require(freshRows.count == 6 && freshRows.allSatisfy { $0.state == .unknown })
+        let answers = await PermissionsSetup.run(asks: [
+            .init(id: "accessibility", prompt: { .granted }),
+            .init(id: "screen-recording", prompt: { .notGranted }),
+        ])
+        require(answers == ["accessibility": .granted, "screen-recording": .notGranted])
+        require(PermissionsSetup.notificationState(authorized: true, notDetermined: false) == .granted)
+        require(PermissionsSetup.notificationState(authorized: false, notDetermined: true) == .unknown)
+        require(PermissionsSetup.notificationState(authorized: false, notDetermined: false) == .notGranted)
         require(try SummonShortcut().label == "⌘⇧E")
         require(try SummonShortcut(letter:"J").letter == "j")
         for invalid in ["", "space", "⌘e", "é", "1"] {
@@ -51,6 +81,14 @@ struct BridgeChecks {
         print("Native bridge interface checks passed")
         var unexpected = submit; unexpected["execute"] = true
         require(BridgeMessage.parse(unexpected, isMainFrame: true, source: page, bundledPage: page) == nil)
+        PanelGeometryChecks.run()
+        try MagicChecks.run()
+        try UpdateChecks.run()
+        // Intent: ELF-62. The Magic choice and the desktop dimming are the page's only new requests to the Mac; each carries exactly its own field.
+        for (kind,payload) in [("configureMagic",["level":"rich"]),("dim",["on":true])] {
+            var message = submit; message["kind"] = kind; message["payload"] = payload
+            require(BridgeMessage.parse(message,isMainFrame:true,source:page,bundledPage:page)?.kind == kind)
+        }
         try await ScheduleChecks.run()
     }
 }

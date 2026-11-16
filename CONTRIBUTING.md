@@ -17,10 +17,12 @@ swift run PipCoreChecks
 swift run PipDictationChecks
 python3 tests/publication-export.test.py
 python3 tests/launch-help.test.py      # Native opening is intercepted; no window opens
+python3 tests/release-package.test.py  # Release checksum, signing-refusal and cask rules
 npm run test:ui
 ```
 
-The build is unsigned and source-dependent. Do not sign, change Gatekeeper, add a
+`npm run build` is unsigned and source-dependent. The self-contained release app and its
+local checks are in [releasing](docs/RELEASING.md); only the maintainer signs releases. Do not sign, change Gatekeeper, add a
 login item or use production state to make a test pass. Automated tests use isolated
 profiles; never put a key, personal fact or real account into a fixture. Live provider,
 microphone, screen or device checks need separate consent and must state proof limits.
@@ -41,7 +43,9 @@ PIP_CHATGPT_LIVE_ALLOWED=1 PIP_PROBE_OUTPUT=/absolute/outside-project/chatgpt-si
   PIP_TEST_ROOT=/absolute/outside-project/temp python3 scripts/validate-chatgpt-native.py
 ```
 
-The second phase uses the same `isolatedHome` from the first phase’s private
+The second phase runs one ask as a whole pi-durable conversation (tools and events
+included), so it may make more than one model call within the 24-turn and ten-minute
+limits. It uses the same `isolatedHome` from the first phase’s private
 `launch.json`. It sends only the approved public-documentation request through
 Pip’s private service pipe, without new sign-in, keyboard injection or taking key
 focus. It refuses a profile with existing work or memories rather than replaying

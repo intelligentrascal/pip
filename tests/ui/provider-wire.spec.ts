@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import {openMore} from '../helpers/chat-page.js';
 import { spawn } from 'node:child_process';
 import { createInterface } from 'node:readline';
 import { mkdtemp, mkdir, writeFile } from 'node:fs/promises';
@@ -12,7 +13,7 @@ test('production service envelopes render fresh state, Allow, active provider an
  await mkdir(base,{recursive:true});
  const home=await mkdtemp(path.join(base,'pip-provider-wire-'));
  await writeFile(path.join(home,'.pip-test-home'),'pip-test-only');
- const service=spawn(process.execPath,['dist/service.js'],{env:{...process.env,PIP_HOME:home,PIP_TEST_ROOT:base,PIP_TEST:'1',PIP_NATIVE:'',PIP_ISOLATED_BACKENDS:'',PIP_CLAUDE_ALLOWED:''},stdio:['pipe','pipe','pipe']});
+ const service=spawn(process.execPath,['dist/service.js'],{env:{...process.env,PIP_HOME:home,PIP_TEST_ROOT:base,PIP_TEST:'1',PIP_NATIVE:'',PIP_ISOLATED_BACKENDS:''},stdio:['pipe','pipe','pipe']});
  const exited=new Promise<number|null>((resolve,reject)=>{service.once('error',reject);service.once('exit',resolve);});
  const errors:string[]=[],transcript:any[]=[],requests:any[]=[];
  let stderr='',ready=false,delivery=Promise.resolve();
@@ -39,27 +40,27 @@ test('production service envelopes render fresh state, Allow, active provider an
   // Service startup and rendering are event-driven, bounded by the shared test
   // deadline, not an unrelated five-second polling budget under machine load.
   await stateDelivered;
-  await page.locator('#settings').click();
+  await openMore(page,'Settings');
   await capture('provider-wire-settings');
   expect(errors).toEqual([]);
   const initial=transcript.find(m=>m.kind==='state').payload.providers;
   expect(Array.isArray(initial.providers)).toBe(true);
-  expect(initial.active).toBe('claude');expect(initial.backup).toBeNull();
+  expect(initial.active).toBe('openai');expect(initial.backup).toBeNull();
   await expect(page.locator('[data-provider]')).toHaveCount(initial.providers.length);
-  await expect(page.locator('[data-provider=claude]')).toContainText('Connected · Not allowed · Active');
+  await expect(page.locator('[data-provider=openai]')).toContainText('Not connected · Not allowed · Active');
   await expect(page.locator('[data-provider=deepseek]')).toContainText('Not connected · Not allowed');
   await expect(page.locator('#provider-backup option')).toHaveText(['None']);
-  await page.locator('[data-provider=claude]').scrollIntoViewIfNeeded();
+  await page.locator('[data-provider=openai]').scrollIntoViewIfNeeded();
   await capture('provider-wire-rows');
 
   // Only local Allow/settings writes: never connect a provider or send inference.
-  await page.locator('[data-provider=claude]').getByRole('button',{name:'Review Allow'}).click();
-  await expect(page.getByRole('heading',{name:'Let Pip send requests to Claude?'})).toBeVisible();
-  await page.getByRole('heading',{name:'Let Pip send requests to Claude?'}).scrollIntoViewIfNeeded();
+  await page.locator('[data-provider=openai]').getByRole('button',{name:'Review Allow'}).click();
+  await expect(page.getByRole('heading',{name:'Let Pip send requests to ChatGPT plan?'})).toBeVisible();
+  await page.getByRole('heading',{name:'Let Pip send requests to ChatGPT plan?'}).scrollIntoViewIfNeeded();
   await capture('provider-wire-allow');
   expect(requests.some(m=>m.kind==='submit'||m.kind==='provider.signIn')).toBe(false);
-  await page.getByRole('button',{name:'Allow Claude',exact:true}).click();
-  await expect(page.locator('[data-provider=claude]')).toContainText('Connected · Allowed · Active');
+  await page.getByRole('button',{name:'Allow ChatGPT plan',exact:true}).click();
+  await expect(page.locator('[data-provider=openai]')).toContainText('Not connected · Allowed · Active');
   await page.locator('[data-provider=deepseek]').getByRole('button',{name:'Review Allow'}).click();
   await page.getByRole('button',{name:'Allow DeepSeek',exact:true}).click();
   await expect(page.locator('#provider-backup option')).toHaveText(['None','DeepSeek']);
@@ -76,8 +77,8 @@ test('production service envelopes render fresh state, Allow, active provider an
   await expect(page.locator('[data-provider=deepseek]')).toContainText('Not connected · Allowed · Active');
   await expect(page.locator('#provider-backup')).toHaveValue('');
   await expect(page.locator('[data-provider=deepseek]').getByRole('button',{name:'Use this model'})).toBeDisabled();
-  await page.locator('[data-provider=claude]').getByRole('button',{name:'Use Claude'}).click();
-  await expect(page.locator('#result')).toContainText('Claude is allowed and connected.');
+  service.stdin.write(JSON.stringify({version:1,id:'wire-select-openai',kind:'provider.select',payload:{id:'openai'}})+'\n');
+  await expect(page.locator('[data-provider=openai]')).toContainText('Not connected · Allowed · Active');
   await page.locator('#provider-backup').selectOption('deepseek');
   await expect(page.locator('[data-provider=deepseek]')).toContainText('Backup');
   await page.locator('[data-provider=deepseek]').getByRole('button',{name:'Withdraw Allow'}).click();

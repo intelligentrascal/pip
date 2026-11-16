@@ -141,7 +141,7 @@ final class PipNativeProbe {
             facts["feedbackSavedToBacklog"] = true; facts["feedbackDidNotStartWork"] = true
             clearWait(); stage = "waiting for tracker records"; armTrackerDeadline("Tracker records were not returned")
             host.web.callAsyncJavaScript("""
-                document.querySelector('#tracker').click();
+                document.querySelector('#more').click();document.querySelector('#menu [data-item=tracker]').click();
                 const tracker=document.querySelector('pip-tracker');
                 const rendered=new Promise(resolve=>{
                   const accept=event=>{if(event.detail.view==='about'&&event.detail.ids.includes(recordID)){tracker.removeEventListener('tracker-rendered',accept);resolve(true);}};
@@ -165,10 +165,10 @@ final class PipNativeProbe {
             if isLiveWriting { inspectLiveDraft(work) }
             else {
                 // ELF-30: a fresh profile stops at the provider's Allow boundary,
-                // before the older disabled-Claude connection boundary. Observe the
+                // before any model is asked. Observe the
                 // actual rendered refusal as well as the persisted service error.
                 let refusal = work["error"] as? String ?? ""
-                host.web.callAsyncJavaScript("return document.querySelector('#result').textContent.includes(refusal)", arguments: ["refusal": refusal], in: nil, in: .page) { [weak self] result in
+                host.web.callAsyncJavaScript("return document.querySelector('#cv').textContent.includes(refusal)", arguments: ["refusal": refusal], in: nil, in: .page) { [weak self] result in
                     guard let self else { return }
                     self.facts["providerNotAllowedVisible"] = refusal.contains("not allowed yet") && refusal.contains("Nothing was sent.") && (try? result.get() as? Bool) == true
                     self.snapshot("native-after-submit") {
@@ -361,7 +361,7 @@ final class PipNativeProbe {
     }
     func beginTrackerCheck(workCount:Int) {
         trackerBaselineWorkCount = workCount;stage = "opening feedback"
-        host.web.callAsyncJavaScript("document.querySelector('#feedback').click();document.querySelector('pip-feedback').shadowRoot.querySelector('[name=kind]').value='bug';return true",arguments:[:],in:nil,in:.page) { [weak self] result in
+        host.web.callAsyncJavaScript("document.querySelector('#more').click();document.querySelector('#menu [data-item=feedback]').click();document.querySelector('pip-feedback').shadowRoot.querySelector('[name=kind]').value='bug';return true",arguments:[:],in:nil,in:.page) { [weak self] result in
             guard let self else { return };guard case .success = result else { self.fail("Could not open Feedback");return }
             self.typeFeedbackField("[name=originalWords]",text:"pip opens on the wrong display") {
                 self.typeFeedbackField("[name=title]",text:"wrong display") {
@@ -383,7 +383,7 @@ final class PipNativeProbe {
             self.facts["trackerFoundSavedFeedback"] = true
             self.snapshot("native-feedback-detail") {
                 self.stage = "waiting for shortcut setting";self.armTrackerDeadline("Native shortcut setting was not acknowledged")
-                self.host.web.callAsyncJavaScript("document.querySelector('#settings').click();document.querySelector('#shortcutKey').value='j';[...document.querySelectorAll('#result button')].find(b=>b.textContent==='Set shortcut').click();return true",arguments:[:],in:nil,in:.page) { [weak self] result in
+                self.host.web.callAsyncJavaScript("document.querySelector('#more').click();document.querySelector('#menu [data-item=settings]').click();document.querySelector('#shortcutKey').value='j';[...document.querySelectorAll('#result button')].find(b=>b.textContent==='Set shortcut').click();return true",arguments:[:],in:nil,in:.page) { [weak self] result in
                     if case .failure = result { self?.fail("The shortcut control did not dispatch") }
                 }
             }
@@ -394,16 +394,16 @@ final class PipNativeProbe {
               let draft = result["text"] as? String, !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
               let model = result["model"] as? String, !model.isEmpty,
               let session = result["sessionId"] as? String, session == work["sessionId"] as? String else {
-            fail("Live Claude did not return an identified editable draft"); return
+            fail("The live model did not return an identified editable draft"); return
         }
         if scenario == "live-followup" {
             guard let context = work["context"] as? [String: Any], let parent = context["workId"] as? String else { fail("Live follow-up lost the selected-result context"); return }
             facts["selectedContextWorkId"] = parent; facts["selectedContextPreserved"] = true
         }
-        host.web.callAsyncJavaScript("const d=document.querySelector('#result .draft'); return {text:d?.value, notSent:document.querySelector('#result').innerText.includes('I haven’t sent it.')}", arguments: [:], in: nil, in: .page) { [weak self] response in
+        host.web.callAsyncJavaScript("const d=document.querySelector('.draft'); return {text:d?.value, notSent:document.querySelector('.pt-draft .ph').innerText.includes('Not sent')}", arguments: [:], in: nil, in: .page) { [weak self] response in
             guard let self else { return }
             guard case .success(let value) = response, let fields = value as? [String: Any], fields["text"] as? String == draft, fields["notSent"] as? Bool == true else { self.fail("The live draft was not rendered with its not-sent status"); return }
-            self.facts["liveClaudeDraftVisible"] = true; self.facts["preCallIdentityMatched"] = true
+            self.facts["liveDraftVisible"] = true; self.facts["preCallIdentityMatched"] = true
             let proof: [String: Any] = ["workId": work["id"] ?? "", "sessionId": session, "model": model, "draft": draft, "threadId": work["threadId"] ?? "", "contextWorkId": self.facts["selectedContextWorkId"] ?? NSNull(), "renderedDraftMatches": true, "notSent": true]
             if let data = try? JSONSerialization.data(withJSONObject: proof, options: [.prettyPrinted, .sortedKeys]) { try? data.write(to: URL(fileURLWithPath: self.directory + "/native-live-draft.json")) }
             self.captureGeneratedDraft()
@@ -411,7 +411,7 @@ final class PipNativeProbe {
     }
     func captureGeneratedDraft() {
         // Only generated output is pictured, not the composer or event/key contents.
-        host.web.callAsyncJavaScript("const d=document.querySelector('#result .draft'); d.scrollIntoView({block:'center'}); const r=d.getBoundingClientRect(); return {x:r.x,y:r.y,width:r.width,height:r.height}", arguments: [:], in: nil, in: .page) { [weak self] response in
+        host.web.callAsyncJavaScript("const d=document.querySelector('.draft'); d.scrollIntoView({block:'center'}); const r=d.getBoundingClientRect(); return {x:r.x,y:r.y,width:r.width,height:r.height}", arguments: [:], in: nil, in: .page) { [weak self] response in
             guard let self else { return }
             guard case .success(let value) = response, let fields = value as? [String: Double], let x = fields["x"], let y = fields["y"], let width = fields["width"], let height = fields["height"] else { self.fail("Could not measure the generated draft view"); return }
             let rect = NSRect(x: x, y: y, width: width, height: height)
@@ -468,11 +468,9 @@ final class PipNativeProbe {
         guard let data = try? Data(contentsOf: manifestURL),
               let manifest = (try? JSONSerialization.jsonObject(with:data)) as? [String:Any],
               let assetSet = manifest["assetSet"] as? String,
-              let target = manifest["targetPoints"] as? NSNumber,
-              let parts = manifest["parts"] as? [String:[String:Any]],
-              let outline = manifest["outline"] as? [String:Any], let outlineSize = outline["size"] as? [Int], outlineSize.count == 2
+              let parts = manifest["parts"] as? [String:[String:Any]]
         else { fail("The native art manifest is unavailable"); return }
-        var expectedImages = 1, expectedBytes = outlineSize[0] * outlineSize[1] * 4
+        var expectedImages = 0, expectedBytes = 0
         for part in parts.values {
             guard let file = part["file"] as? String, let size = part["size"] as? [Int], size.count == 2 else { fail("Native artwork registration is incomplete"); return }
             if FileManager.default.fileExists(atPath:host.resources.appendingPathComponent("web/curious-hearth/" + file).path) {
@@ -481,18 +479,21 @@ final class PipNativeProbe {
         }
         var before = rusage(); guard getrusage(RUSAGE_SELF, &before) == 0 else { fail("Native process resource observation is unavailable"); return }
         let began = ProcessInfo.processInfo.systemUptime
+        // ELF-62: the heaviest arrival (Rich magic, full length) while the pointer sweeps the four screen corners, sampled frame by frame in the
+        // real web view. The page draws at most one frame per display refresh, so a frame time is the gap between two frame callbacks.
         let script = """
         const c=document.getElementById('character');
         if(!c || !await c.ready) throw Error('Native character images did not decode');
-        const gaps=[],poses=new Set(),states=new Set();let prior,maxOwned=0;
+        const gaps=[],poses=new Set(),states=new Set();let prior;
+        const started=performance.now();
         await new Promise(resolve=>{
           function frame(now){
-            if(!document.hidden && !c.concealed){
+            if(!document.hidden){
               if(prior!==undefined)gaps.push(now-prior);
-              poses.add(getComputedStyle(c.headDriver).transform);states.add(c.dataset.state);maxOwned=Math.max(maxOwned,c.animations.size);
+              poses.add(getComputedStyle(c.headDriver).transform);states.add(c.dataset.state);
               prior=now;
-              if(gaps.length>=90){resolve();return;}
             }else prior=undefined;
+            if(now-started>=2600){resolve();return;}
             requestAnimationFrame(frame);
           }
           requestAnimationFrame(frame);
@@ -502,11 +503,23 @@ final class PipNativeProbe {
           slot:{x:box.x,y:box.y,width:box.width,height:box.height,right:box.right,bottom:box.bottom},
           viewport:{width:innerWidth,height:innerHeight},visibleFrames:gaps.length,
           meanFrameIntervalMs:gaps.reduce((a,b)=>a+b,0)/gaps.length,
-          p95FrameIntervalMs:sorted[Math.floor((sorted.length-1)*.95)],
-          state:c.dataset.state,statesObserved:[...states],headPosesObserved:poses.size,maxOwnedAnimations:maxOwned,
-          reducedMotion:c.motion.matches||parseFloat(getComputedStyle(c).getPropertyValue('--pip-motion-duration')||'1')===0,
-          ownedAnimations:c.animations.size,
+          p95FrameIntervalMs:sorted[Math.floor((sorted.length-1)*.95)],maxFrameIntervalMs:sorted[sorted.length-1],
+          state:c.dataset.state,statesObserved:[...states],headPosesObserved:poses.size,
+          reducedMotion:c.reduced,
+          ownedAnimations:[...c.shadowRoot.getAnimations()].filter(a=>a instanceof CSSAnimation&&a.playState==='running').length,
           documentHidden:document.hidden,actorConcealed:c.concealed};
+        """
+        let reaction = """
+        const c=document.getElementById('character'),box=document.getElementById('composer');
+        window.__reaction={key:null,gap:null};
+        box.addEventListener('keydown',e=>{window.__reaction.key=performance.now();window.__reaction.native=performance.now()-e.timeStamp;},{capture:true,once:true});
+        new MutationObserver((list,observer)=>{if(window.__reaction.key!==null&&window.__reaction.gap===null){window.__reaction.gap=performance.now()-window.__reaction.key;observer.disconnect();}}).observe(c,{attributes:true,attributeFilter:['style']});
+        return true;
+        """
+        let idle = """
+        const c=document.getElementById('character'),before=c.frames;
+        await new Promise(resolve=>setTimeout(resolve,600));
+        return {keyToReactionMs:window.__reaction.gap,keyNativeToPageMs:window.__reaction.native,idleScriptFrames:c.frames-before,pointerAtRest:true};
         """
         // Start playback observation only after the unchanged keyboard journey.
         // Readiness is a real event, then use the native summon path again; never
@@ -516,9 +529,21 @@ final class PipNativeProbe {
             guard let self, self.stage != "finished" else { return }
             self.record("native art readiness callback");self.facts["nativeArtPhase"]="readiness-returned"
             guard case .success(let ready) = readiness, ready as? Bool == true else { self.fail("Native character images did not decode"); return }
+            self.host.magic = MagicSetting(level: MagicLevel(rawValue: ProcessInfo.processInfo.environment["PIP_PROBE_MAGIC"] ?? "rich") ?? .rich); self.host.nativeStatus()
             self.host.summon();self.record("native art resummoned for sampling");self.facts["nativeArtPhase"]="sampling-requested"
+            // The same call again, saying it is not the short repeat, so the full arrival plays under the sampler.
+            self.host.deliver(["kind":"summon","payload":["short":false]])
+            let corners: [(Double, Double)] = [(0, 0), (755, 0), (0, 170), (755, 170)]
+            var swept = 0
+            let sweep = Timer(timeInterval: 0.4, repeats: true) { [weak self] timer in
+                guard let self, swept < corners.count else { timer.invalidate(); return }
+                self.host.deliver(["kind":"pointer","payload":["x":corners[swept].0 - (swept % 2 == 0 ? 400 : 0),"y":corners[swept].1 - 300]]); swept += 1
+            }
+            RunLoop.main.add(sweep, forMode: .common)
             self.host.web.callAsyncJavaScript(script,arguments:[:],in:nil,in:.page) { [weak self] result in
             guard let self, self.stage != "finished" else { return }
+            sweep.invalidate()
+            if case .success(let raw) = result { self.facts["nativeArtRaw"] = raw } else if case .failure(let error) = result { self.facts["nativeArtError"] = String(describing: error) }
             guard case .success(let value) = result, var observed = value as? [String:Any],
                   observed["assetSet"] as? String == assetSet,
                   let resources = observed["resources"] as? [String:Any],
@@ -529,12 +554,34 @@ final class PipNativeProbe {
                   let x = slot["x"] as? Double, let y = slot["y"] as? Double,
                   let right = slot["right"] as? Double, let bottom = slot["bottom"] as? Double,
                   let viewportWidth = viewport["width"] as? Double, let viewportHeight = viewport["height"] as? Double,
-                  abs(width-target.doubleValue) < 0.5, abs(height-target.doubleValue) < 0.5,
+                  abs(width-150) < 0.5, abs(height-150) < 0.5, // Pip's slot in the Lantern window is 150 points
+                  
                   x >= -0.5, y >= -0.5, right <= viewportWidth+0.5, bottom <= viewportHeight+0.5
             else { self.fail("Native artwork readiness, registered rasters or visible layout did not match"); return }
+            guard let p95 = observed["p95FrameIntervalMs"] as? Double, let worst = observed["maxFrameIntervalMs"] as? Double,
+                  ((observed["visibleFrames"] as? NSNumber)?.intValue ?? 0) >= 60 else { self.fail("Native frame times were not sampled"); return }
+            self.facts["nativeFrameP95Ms"] = p95; self.facts["nativeFrameMaxMs"] = worst
+            guard p95 <= 20, worst <= 50 else { self.fail("Native frame times missed the budget: p95 \(p95) ms, worst \(worst) ms"); return }
             let reduced = observed["reducedMotion"] as? Bool == true
-            if reduced && (observed["ownedAnimations"] as? NSNumber)?.intValue != 0 { self.fail("Native reduced-motion artwork remained animated"); return }
-            guard reduced || ((observed["headPosesObserved"] as? NSNumber)?.intValue ?? 0) > 1 else { self.fail("Native authored head motion was not observed"); return }
+            guard reduced || ((observed["headPosesObserved"] as? NSNumber)?.intValue ?? 0) > 1 else { self.fail("Native pointer following was not observed"); return }
+            // A key pressed in the message box, then the pointer leaves the screen and Pip settles; with nothing moving he asks for no script frames.
+            self.host.web.callAsyncJavaScript(reaction,arguments:[:],in:nil,in:.page) { [weak self] armed in
+            guard let self, self.stage != "finished" else { return }
+            guard case .success = armed else { self.fail("Native key reaction could not be armed"); return }
+            self.postKey("a")
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { [weak self] in
+                guard let self, self.stage != "finished" else { return }
+                self.host.deliver(["kind":"pointer","payload":["off":true]])
+                DispatchQueue.main.asyncAfter(deadline: .now() + 4.5) { [weak self] in
+                guard let self, self.stage != "finished" else { return }
+                self.host.web.callAsyncJavaScript(idle,arguments:[:],in:nil,in:.page) { [weak self] measured in
+                guard let self, self.stage != "finished" else { return }
+                guard case .success(let measuredValue) = measured, let rest = measuredValue as? [String:Any],
+                      let reaction = rest["keyToReactionMs"] as? Double, let frames = (rest["idleScriptFrames"] as? NSNumber)?.intValue
+                else { self.fail("Native key reaction was not observed"); return }
+                self.facts["nativeKeyToReactionMs"] = reaction; self.facts["nativeKeyNativeToPageMs"] = rest["keyNativeToPageMs"] ?? NSNull(); self.facts["nativeIdleScriptFrames"] = frames
+                guard reaction < 50 else { self.fail("Native key-to-reaction was \(reaction) ms"); return }
+                guard frames == 0 || reduced else { self.fail("Pip waiting with the pointer still asked for \(frames) script frames"); return }
             var after = rusage(); guard getrusage(RUSAGE_SELF, &after) == 0 else { self.fail("Native process resource observation failed"); return }
             func cpu(_ usage:rusage)->Double { Double(usage.ru_utime.tv_sec)+Double(usage.ru_utime.tv_usec)/1_000_000+Double(usage.ru_stime.tv_sec)+Double(usage.ru_stime.tv_usec)/1_000_000 }
             observed["nativeProcessCpuSeconds"] = cpu(after)-cpu(before)
@@ -545,7 +592,7 @@ final class PipNativeProbe {
             self.facts["nativeArt"] = observed; self.facts["nativeArtObserved"] = true; self.artObservationComplete = true
             if let data = try? JSONSerialization.data(withJSONObject:observed,options:[.prettyPrinted,.sortedKeys]) { try? data.write(to:URL(fileURLWithPath:self.directory+"/native-art.json")) }
             if self.artJourneyComplete { self.snapshot("native-hearth") { self.finish() } }
-            }
+            }}}}}
         }
     }
     func finish() {

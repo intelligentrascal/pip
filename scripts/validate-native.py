@@ -17,10 +17,10 @@ if scenario not in ['focus', 'owned-fullscreen', 'tracker', 'art', 'art-diagnost
 home = pathlib.Path(tempfile.mkdtemp(prefix='pip-native-', dir=os.environ.get('PIP_TEST_ROOT')))
 (home / '.pip-test-home').write_text('pip-test-only')
 settings = {'PIP_HOME': str(home), 'PIP_TEST': '1', 'PIP_PROBE_OUTPUT': str(output),
-            'PIP_CLAUDE_ALLOWED': '', 'PIP_SHOW_ON_LAUNCH': '',
+            'PIP_SHOW_ON_LAUNCH': '',
             'PIP_PROBE_METADATA_ONLY': os.environ.get('PIP_PROBE_METADATA_ONLY', ''),
-            'PIP_PROBE_OBSERVE_DISPATCH': os.environ.get('PIP_PROBE_OBSERVE_DISPATCH', ''), 'PIP_PROBE_SCENARIO': scenario}
-app = root / 'build/Pip.app'
+            'PIP_PROBE_OBSERVE_DISPATCH': os.environ.get('PIP_PROBE_OBSERVE_DISPATCH', ''), 'PIP_PROBE_SCENARIO': scenario, 'PIP_PROBE_MAGIC': os.environ.get('PIP_PROBE_MAGIC', '')}
+app = pathlib.Path(os.environ['PIP_APP']).resolve() if os.environ.get('PIP_APP') else root / 'build/Pip.app'
 command = ['/usr/bin/open', '-n', '-W']
 for key, value in settings.items():
     command.extend(['--env', key + '=' + value])

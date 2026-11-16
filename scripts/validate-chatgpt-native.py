@@ -22,7 +22,7 @@ else:
     home=pathlib.Path(tempfile.mkdtemp(prefix='pip-chatgpt-',dir=test_root))
     (home/'.pip-test-home').write_text('pip-test-only')
     scenario='chatgpt'
-settings={'PIP_HOME':str(home),'PIP_TEST':'1','PIP_PROBE_OUTPUT':str(output),'PIP_CLAUDE_ALLOWED':'','PIP_SHOW_ON_LAUNCH':'','PIP_PROBE_SCENARIO':scenario,'PIP_CHATGPT_LIVE_ALLOWED':'1'}
+settings={'PIP_HOME':str(home),'PIP_TEST':'1','PIP_PROBE_OUTPUT':str(output),'PIP_SHOW_ON_LAUNCH':'','PIP_PROBE_SCENARIO':scenario,'PIP_CHATGPT_LIVE_ALLOWED':'1'}
 command=['/usr/bin/open','-n','-W']
 for k,v in settings.items():command.extend(['--env',k+'='+v])
 command.extend(['--stdout',str(output/'app-stdout.txt'),'--stderr',str(output/'app-stderr.txt'),str(root/'build/Pip.app')])

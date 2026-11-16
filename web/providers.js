@@ -4,7 +4,7 @@ window.pipRenderProviders=function(root,{providers,node,button,emit,showAllow}){
  root.append(node('h3','AI provider'));
  if(!providers.length){root.append(node('p','Provider choices are unavailable.'));return;}
  const active=providers.find(p=>p.active);
- root.append(node('p',`Pip uses ${active?.name??'Claude'} for requests. Nothing is sent to a provider until you read its Allow screen and choose Allow.`));
+ root.append(node('p',`Pip uses ${active?.name??'your model'} for requests. Nothing is sent to a provider until you read its Allow screen and choose Allow.`));
  for(const p of providers){
   const box=node('div',undefined,'provider');box.dataset.provider=p.id;
   box.append(node('strong',p.name),node('p',[p.connected?'Connected':'Not connected',p.allowed?'Allowed':'Not allowed',p.active?'Active':'',p.backup?'Backup':''].filter(Boolean).join(' · '),'label'));
@@ -20,7 +20,7 @@ window.pipRenderProviders=function(root,{providers,node,button,emit,showAllow}){
    if(p.signingIn)actions.append(button('Cancel sign-in',()=>emit('provider.cancelSignIn',{id:p.id}),'secondary'));
   }
   if(p.connect==='secure-field')actions.append(button(p.connected?'Replace key…':'Enter key…',()=>emit('provider.enterKey',{id:p.id}),'secondary'));
-  if(p.connected&&p.connect!=='claude-program')actions.append(button('Remove',()=>emit('provider.remove',{id:p.id}),'secondary'));
+  if(p.connected)actions.append(button('Remove',()=>emit('provider.remove',{id:p.id}),'secondary'));
   const use=button(p.active?'Use this model':'Use '+p.name,()=>emit('provider.select',{id:p.id,model:model.value}),'secondary');
   use.disabled=!(p.allowed&&p.connected);actions.append(use);
   box.append(actions);

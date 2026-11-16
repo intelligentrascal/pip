@@ -1,8 +1,15 @@
 # Build from source
 
-Pip currently supports an **unsigned, source-dependent development build**. There
-is no supported download, Homebrew formula, network installer or login item. Keep
-the project folder and its dependencies in place after building.
+To use Pip, download the signed and notarized Apple-silicon app from the
+[releases page](https://github.com/intelligentrascal/pip/releases) or run
+`brew install --cask intelligentrascal/tap/pip-house-elf`. See the README's Install section.
+This page is for building from source: an **unsigned, source-dependent developer build**.
+There is no network installer or login item. Keep the project folder and its dependencies in
+place after building.
+
+The release app, its ZIP and disk image and in-app updates are built and checked locally with
+`python3 scripts/release.py` and signed with `python3 scripts/sign_release.py`; that path is
+described in [Releasing and updating](RELEASING.md).
 
 ## Requirements
 
@@ -12,8 +19,8 @@ the project folder and its dependencies in place after building.
   Swift tools 6.0; the tested compiler is listed below).
 - Node **22.19 or newer**, npm and Python 3.
 - Google Chrome for task browsing and the UI test suite.
-- The installed Claude program only if you choose that provider; local remembered
-  facts do not require an AI account.
+- A ChatGPT plan, OpenRouter or DeepSeek account only if you choose that provider;
+  local remembered facts do not require an AI account.
 
 The preparation Mac runs macOS 26.5.2 on an Apple M1 Pro with 32 GiB memory. It has
 Node 22.23.2, npm 10.9.8, Python 3.14.5 and Swift 6.3.2. The fresh-profile native
@@ -45,11 +52,18 @@ dependency link are specific to the build machine. **Do not redistribute this ap
 ## First use, without an account
 
 1. Choose **Summon Pip** from the menu bar, or press **Command–Shift–E**.
-2. Choose **Remember**, enter a disposable fact such as “For this demo, I prefer tea.”,
-   then choose **Review save**. Check the exact text before **Save fact**.
-3. Open remembered facts in Settings. Edit and Forget require confirmation; Forget
+2. Choose **More → Remember**, enter a disposable fact such as “For this demo, I prefer
+   tea.”, then choose **Review save**. Check the exact text before **Save fact**.
+3. Open **More → Settings → Remembered facts**. Edit and Forget require confirmation; Forget
    is not secure deletion. A fresh profile contains no sample facts.
-4. Press Escape to hide Pip. Summon it again; an unfinished draft should remain.
+4. In **Settings → Magic**, choose Calm, Balanced (the default) or Rich to set how much
+   light is drawn around Pip. Reduce Motion in System Settings turns every effect off.
+5. Press Escape to hide Pip. Summon it again; an unfinished draft should remain.
+6. In Settings choose **Mac access** and read what each of the six permissions is for
+   before choosing **Set up Mac access**. That setup asks macOS once, in order, with
+   each permission's own prompt or System Settings pane; only you can grant. Pip never
+   re-asks on later launches. Skip it if you do not want the Mac abilities yet — a tool
+   that is not allowed says so plainly.
 
 Settings lets you choose a different Command–Shift letter when a shortcut conflicts.
 Before submitting AI work, review its provider's Allow screen. No provider is needed

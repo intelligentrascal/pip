@@ -57,7 +57,7 @@ window.PipDictation = class {
   const combined=composer.value+(composer.value?'\n':'')+text;
   if(combined.length>composer.maxLength){this.message.textContent='The combined draft is too long. Shorten the transcript before adding it.';return;}
   this.cancel();composer.value=combined;composer.dispatchEvent(new Event('input',{bubbles:true}));composer.focus();
-  document.getElementById('status').textContent='Transcript added to the composer. Review it, then choose Ask. Nothing was sent.';
+  document.getElementById('status').textContent='Transcript added to your message. Review it, then press Send. Nothing was sent.';
  }
  cancel({notify=true}={}){
   const wasOpen=!this.root.hidden;

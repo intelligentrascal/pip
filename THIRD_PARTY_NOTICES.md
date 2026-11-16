@@ -43,23 +43,50 @@ Preserve this notice with redistributed copies or substantial portions.
 > OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 > SOFTWARE.
 
-## Claude SDK and services
+## Mac automation packages
 
-The Claude Agent SDK and its platform packages declare separate commercial terms.
-They are **not relicensed under Pip's MIT license**, and this project must not
-claim every dependency is open-source. Review the installed package's
-`LICENSE.md` and current official authentication/service guidance before any
-redistribution or subscription-support claim. A source dependency declaration is
-not a grant to redistribute a signed or portable application.
+`@playwright/mcp` (Apache-2.0), `@steipete/peekaboo` (MIT, © 2025 Peter Steinberger)
+and `automator-mcp` (MIT, © 2025 Maciej Gad) are pinned dependencies whose MCP
+servers Pip starts locally for its Mac abilities. Their license files ship inside
+the installed packages; `@playwright/mcp`'s Apache-2.0 notice applies to its
+redistribution, and the two MIT packages carry their own copyright notices. The
+installed Peekaboo package also embeds a compiled universal binary governed by its
+own package terms. The source build starts it as installed and does not redistribute it;
+the self-contained release app does ship its Apple-silicon slice (see below).
+
+## The self-contained release app
+
+`scripts/release.py package` bundles the official Node.js runtime pinned in
+`release/node-runtime.json` (MIT, with the licenses of the components Node itself
+embeds, all in the `LICENSE` file shipped as `Contents/Resources/licenses/node/LICENSE`)
+and the production dependencies from `package-lock.json`. It copies every license and
+notice file those packages carry into `Contents/Resources/licenses/npm` and lists each
+package's declared license and shipped files in `npm-inventory.json` beside them. The
+current inventory is MIT, Apache-2.0, BSD-2-Clause, BSD-3-Clause, ISC, 0BSD and
+Unlicense; a few packages declare a license but carry no license file, which the
+inventory shows. Redistributing the compiled Peekaboo helper and Node requires the
+maintainer's review of these terms before any public release.
+
+## Answer parts
+
+`@openuidev/lang-core` (MIT, © 2011-2024 Thesys Inc.) parses the OpenUI Lang blocks in
+Pip's answers, and `zod` (MIT) describes the ten part kinds it accepts. Both run in Pip's
+local service, a pinned dependency whose license files ship inside the installed packages.
+Pip turns the library's anonymous usage counts off.
+
+## Provider services
+
+Model providers' service terms are separate from Pip's MIT license, and this project
+must not claim a provider's terms or a subscription's eligibility are covered by it.
+No dependency in the lockfile declares commercial terms; a source dependency
+declaration is not a grant of anything beyond each license's own terms. The release app carries Node's license and every
+bundled dependency's license files in `Contents/Resources/licenses`, with an inventory in `npm-inventory.json`.
 
 ## Source dependency inventory
 
-The current lockfile has 230 non-root dependency entries: 154 MIT, 43 Apache-2.0,
-14 BSD-3-Clause, seven ISC, one BSD-2-Clause, one 0BSD, one Unlicense and nine Claude
-SDK/platform entries referring to the commercial notice described above. This is
+The current lockfile has 228 non-root dependency entries: 160 MIT, 44 Apache-2.0,
+14 BSD-3-Clause, seven ISC, one BSD-2-Clause, one 0BSD and one Unlicense. This is
 an inventory of declarations, not a claim that every dependency is open-source.
-The installed macOS Claude SDK/platform notices both point to Anthropic's legal
-agreements; the omitted platform binaries are not part of this source export.
 
 No dependency directory, installed binary, generated app bundle or transitive
 license file is copied into the public candidate. The copied third-party README

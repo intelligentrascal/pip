@@ -1,4 +1,5 @@
 import { test,expect } from '@playwright/test';
+import {composer,openMore} from '../helpers/chat-page.js';
 import { TaskBrowsers } from '../../runtime/task-browser.js';
 import { openHost, type Host } from '../../runtime/pi-durable-adapter.js';
 import { trackerRecords } from '../../runtime/tracker.js';
@@ -6,6 +7,7 @@ import { browserPageURL,linkedURL,savedBrowserPage } from '../helpers/browser-pa
 import { mkdtemp,mkdir,writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
+import { fauxEngine,calls as scripted,said } from '../helpers/faux-engine.js';
 
 // Intent: accepted ELF-8 compact Watch/site/title/driver, private Take over,
 // fresh Return control and closing Watch without stopping useful task browsing.
@@ -18,11 +20,10 @@ test('reviewed task reads a page and exposes truthful Watch, private handoff, re
  let host:Host;let connected=false;
  let holdFrame=false,frameHeld=()=>{},releaseFrame=()=>{},frameDelivered=()=>{};
  let frameRelease:Promise<void>=Promise.resolve();
- const snapshot=async()=>{if(host&&connected){const state=await host.snapshot();await receive({kind:'state',payload:{state,workViews:trackerRecords(state,'work'),claudeAllowed:false}});}};
- host=await openHost({home,fixture:true,browser:id=>browsers.tools(id),changed:()=>{void snapshot();},provider:async(request,_memory,_signal,context)=>{
-  const source=await context!.browser!.inspect();
-  return {kind:'answer',title:'Browser source read',text:source.text.slice(0,500),sources:[{id:'opened-page',url:source.url,title:source.title,text:source.text,fetchedAt:new Date().toISOString()}],model:'Fixture provider · actual isolated browser',sessionId:'browser-ui'};
- }});
+ const snapshot=async()=>{if(host&&connected){const state=await host.snapshot();await receive({kind:'state',payload:{state,workViews:trackerRecords(state,'work')}});}};
+ const {faux,engine}=fauxEngine();
+ faux.setResponses([scripted(['inspect',{}]),said('Browser source read\n\nThe reviewed page was read.')]);
+ host=await openHost({home,fixture:true,engine,browser:id=>browsers.tools(id),changed:()=>{void snapshot();}});
  const capture=async(name:string)=>{if(process.env.PIP_CAPTURE_DIR)await page.screenshot({path:path.join(process.env.PIP_CAPTURE_DIR,name+'.png')});};
  try{
   await page.exposeFunction('pipTestBridge',async(m:any)=>{
@@ -38,8 +39,8 @@ test('reviewed task reads a page and exposes truthful Watch, private handoff, re
     else if(m.kind==='stop'){await browsers.closeAll();await host.stop();}
    }catch(error){await receive({id:m.id,kind:'error',payload:{message:(error as Error).message}});}
   });
-  await page.goto('/');await expect(page.getByPlaceholder('What would you like a hand with?')).toBeFocused();await capture('browser-entry');
-  await page.getByRole('button',{name:'Browse',exact:true}).click();
+  await page.goto('/');await expect(composer(page)).toBeFocused();await capture('browser-entry');
+  await openMore(page,'Browser task');
   await page.getByLabel('What should Pip do?').fill('Read the Pi durable introduction and explain how it keeps work after a crash.');
   await page.getByLabel('Reviewed page addresses, one per line').fill(browserPageURL+'\n'+linkedURL);await capture('browser-review');
   await page.getByRole('button',{name:'Start reviewed browser task'}).click();

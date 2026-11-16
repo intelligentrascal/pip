@@ -59,7 +59,8 @@ All boxes are gates, not claims that checks have passed:
       No further generated-art eligibility investigation is required by this
       preparation checklist; privacy checks and exact-content public consent remain.
 - [ ] Capture only Pip's own window in a fresh disposable profile: hero, Settings /
-      Allow, and a 6–10 second memory review/save/list GIF with static equivalents.
+      Allow, a memory review/save/list GIF and a 6–10 second Balanced summon and
+      effects recording (MP4 and GIF), each with a static equivalent.
       Inspect every frame, remove personal capture metadata, preserve required
       provenance markings and label fixture-driven results. Keep
       masters private and approve each committed derivative by hash.

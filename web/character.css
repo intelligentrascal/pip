@@ -1,2 +1,74 @@
-:host{position:relative;display:block;width:var(--pip-character-size,112px);height:var(--pip-character-size,112px);flex:0 0 var(--pip-character-size,112px);overflow:visible}svg{display:block;width:100%;height:100%;overflow:visible}svg [data-part],svg [data-group]{transform-box:view-box}svg [data-part^=charm-]{filter:drop-shadow(0 0 7px rgba(20,41,35,.85))}.fallback{position:absolute;inset:0;display:block;width:100%;height:100%;object-fit:contain;pointer-events:none}.fallback[hidden]{display:none}@media(prefers-reduced-motion:reduce){svg *{transition:none!important;animation:none!important}}
-svg [data-part^=charm-]{display:none}
+:host{position:relative;display:block;width:var(--pip-character-size,150px);height:var(--pip-character-size,150px);flex:0 0 var(--pip-character-size,150px);overflow:visible;--ez:cubic-bezier(.32,.72,0,1);--lc:var(--ac,#e0a548);--glow:.3}
+svg{display:block;width:100%;height:100%;overflow:visible;position:relative;z-index:1}
+svg [data-pivot]{transform-box:view-box}
+.fallback{position:absolute;inset:0;display:block;width:100%;height:100%;object-fit:contain;pointer-events:none}.fallback[hidden]{display:none}
+:host([data-concealed]) svg,:host([data-concealed]) .shadow,:host([data-concealed]) .ring{opacity:0}
+.shadow{position:absolute;left:28%;top:82%;width:59%;height:10%;border-radius:50%;background:radial-gradient(closest-side,#000b,transparent);transition:opacity .36s}
+/* Idle life runs on the compositor: no script frames while Pip waits. */
+[data-role=breath]{transform-origin:585px 860px;animation:breathe 1.9s ease-in-out infinite alternate}
+[data-role=lean]{rotate:var(--bl,0deg)}
+[data-role=head]{transform:translate(var(--hx,0px),var(--hy,0px)) rotate(var(--hr,0deg))}
+[data-role=iris]{transform:translate(var(--ix,0px),var(--iy,0px))}
+[data-role=arm-left]{rotate:var(--la,0deg);transition:rotate .7s cubic-bezier(.3,1.5,.4,1);animation:sway 1.7s ease-in-out infinite alternate;--a:1.6deg}
+[data-role=arm-right],[data-role=arm-right-lantern]{animation:sway 2.3s ease-in-out infinite alternate;--a:.8deg}
+[data-role=ear-left]{rotate:var(--e1,0deg);animation:flick 6.3s infinite;--a:8deg}
+[data-role=ear-right]{rotate:var(--e2,0deg);animation:flick 8.1s 2s infinite;--a:-7deg}
+[data-role=lantern]{animation:sway 1.5s ease-in-out infinite alternate;--a:2.4deg}
+[data-role=scarf-tail]{animation:sway 2.1s ease-in-out infinite alternate;--a:2deg}
+[data-part^=closed-eye]{opacity:0;animation:blink 5.6s steps(1) infinite}
+:host([data-blinking]) [data-part^=closed-eye]{opacity:1;animation:none}
+[data-part=mouth-neutral],[data-part=mouth-concern]{opacity:0}
+:host([data-mouth=neutral]) [data-part=mouth-smile],:host([data-mouth=concern]) [data-part=mouth-smile]{opacity:0}
+:host([data-mouth=neutral]) [data-part=mouth-neutral],:host([data-mouth=concern]) [data-part=mouth-concern]{opacity:1}
+.glow{opacity:var(--glow);transform-origin:800px 735px;animation:glow 1.3s ease-in-out infinite alternate;transition:opacity .16s}
+.glow-core{stop-color:color-mix(in srgb,var(--lc) 62%,transparent)}.glow-edge{stop-color:color-mix(in srgb,var(--lc) 0%,transparent)}
+/* The three scrolls: drift toward the pointer at their own depth, circle while working, bob always. */
+[data-role=scroll]{translate:calc(var(--cx,0px)*var(--m)) calc(var(--cy,0px)*var(--m) + var(--cd,0px));transition:translate .8s cubic-bezier(.3,1.4,.4,1),scale .5s var(--ez),opacity .3s}
+[data-role=scroll][data-index="1"]{--m:1;--d:1.9s}[data-role=scroll][data-index="2"]{--m:1.6;--d:2.3s}[data-role=scroll][data-index="3"]{--m:.6;--d:2.7s}
+[data-role=scroll-turn]{rotate:var(--oa,0deg)}
+[data-role=scroll-upright]{rotate:calc(-1*var(--oa,0deg))}
+[data-role=scroll-bob]{animation:bob var(--d) ease-in-out infinite alternate;filter:none}
+:host([data-pose=working]),:host([data-pose=paused]),:host([data-pose=talking]){--glow:.62}
+:host([data-pose=working]){--la:9deg}
+:host([data-pose=paused]){--la:5deg;--lc:var(--wa,#c8814a)}
+:host([data-pose=problem]){--cd:44px;--la:-4deg;--glow:.06}
+:host([data-pose=talking]){--la:3deg}
+:host([data-pose=talking]) .glow{animation-duration:.4s}
+:host([data-pose=paused]) [data-role=scroll][data-index="2"]{translate:46px 150px;scale:1.25}
+:host([data-pose=paused]) [data-role=scroll][data-index="3"]{translate:-70px 40px}
+:host([data-pose=paused]) [data-role=scroll-bob],:host([data-pose=talking]) [data-role=scroll-bob]{animation-play-state:paused}
+:host([data-sent]) [data-role=scroll][data-index="2"]{translate:520px -1150px;scale:.6;opacity:0;transition:translate .6s cubic-bezier(.5,0,.9,.5),scale .6s,opacity .2s .4s}
+/* Moments */
+:host([data-hop]) [data-part=hero]{animation:hop .5s var(--ez)}
+:host([data-reveal]) svg{animation:reveal .65s ease-out both;mask:linear-gradient(#0000 40%,#000 60%) 0 0/100% 350% no-repeat}
+:host([data-reveal=short]) svg{animation-duration:.3s}
+:host([data-reveal]) [data-role=scroll-upright]{animation:pop .45s backwards cubic-bezier(.3,1.5,.4,1);animation-delay:calc(.3s + var(--m)*.1s)}
+:host([data-reveal=short]) [data-role=scroll-upright]{animation-duration:.25s;animation-delay:0s}
+:host([data-reveal]) [data-role=hand-left]{animation:wave .65s .3s ease-in-out}
+:host([data-reveal=short]) [data-role=hand-left]{animation:none}
+:host([data-bloom]) .glow{opacity:.95;scale:1.9;animation:none}
+.ring{position:absolute;left:0;top:27%;width:100%;height:100%;transform:scaleY(.15);overflow:visible;fill:none;stroke:var(--lc);stroke-width:1.7;opacity:0;transition:opacity .5s;filter:drop-shadow(0 0 5px var(--lc));pointer-events:none}
+:host([data-ring]) .ring g{animation:turn 24s linear infinite}
+.ring [pathLength]{stroke-dasharray:1;stroke-dashoffset:1;transition:stroke-dashoffset .45s var(--ez)}
+.ring .tick{stroke-width:9;stroke-dasharray:1.5 12.24}
+:host([data-ring]) .ring{opacity:.95}
+:host([data-ring]) .ring [pathLength]{stroke-dashoffset:0}
+:host([data-ring=fading]) .ring{opacity:0;transition-duration:.5s}
+.rays{position:absolute;left:12%;top:0;width:76%;height:76%;border-radius:50%;background:repeating-conic-gradient(color-mix(in srgb,var(--lc) 55%,transparent) 0 3deg,transparent 3deg 19deg);mask:radial-gradient(closest-side,#000 12%,#0000);opacity:0;pointer-events:none}
+:host([data-rays]) .rays{animation:rays .75s ease-out}
+:host([data-rays=short]) .rays{animation-duration:.3s}
+:host([data-hidden]) *,:host([data-hidden]) *::before{animation-play-state:paused!important}
+:host([data-reduce]) *{animation:none!important;transition:none!important}
+:host([data-reduce]) .glow{opacity:var(--glow)}
+@keyframes sway{from{transform:rotate(calc(-1*var(--a)))}to{transform:rotate(var(--a))}}
+@keyframes breathe{to{transform:scaleY(1.013)}}
+@keyframes flick{93%,to{transform:none}96%{transform:rotate(var(--a))}}
+@keyframes blink{46%{opacity:1}48%{opacity:0}94%{opacity:1}96.5%{opacity:0}}
+@keyframes bob{from{transform:translateY(-20px) rotate(-5deg)}to{transform:translateY(20px) rotate(5deg)}}
+@keyframes glow{to{scale:1.09}}
+@keyframes turn{to{transform:rotate(360deg)}}
+@keyframes hop{35%{transform:translateY(-60px)}}
+@keyframes reveal{0%{filter:brightness(6) saturate(0);mask-position:0 0}45%{filter:brightness(3) saturate(.4)}80%{filter:brightness(1.4);mask-position:0 100%}to{mask-position:0 100%}}
+@keyframes pop{from{scale:0;opacity:0}}
+@keyframes wave{20%,60%{rotate:-16deg}40%,80%{rotate:10deg}}
+@keyframes rays{0%{opacity:0;scale:.25}22%{opacity:.85}to{opacity:0;scale:1.25;rotate:28deg}}

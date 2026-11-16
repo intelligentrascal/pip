@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""Only after task-scoped Claude consent: two real native writing turns, with restart.
+"""Only after task-scoped consent for a live model: two real native writing turns, with restart.
 Each normal Mac-app launch uses explicit isolated state. No sends/native-data writes,
 credential access, signing, global keyboard injection or permission requests.
 """
 import json, os, pathlib, subprocess, tempfile
 root=pathlib.Path(__file__).resolve().parents[1]
-if os.environ.get('PIP_CLAUDE_ALLOWED')!='1':
-    raise SystemExit('This live check needs the captain’s task-scoped Claude approval.')
+if os.environ.get('PIP_LIVE_MODEL_ALLOWED')!='1':
+    raise SystemExit('This live check needs the captain’s task-scoped approval for a live model.')
 base=pathlib.Path(os.environ['PIP_PROBE_OUTPUT']).resolve()
 if base.is_relative_to(root): raise SystemExit('Keep evidence outside the working copy.')
 base.mkdir(parents=True,exist_ok=False)
@@ -16,7 +16,7 @@ app=root/'build/Pip.app'
 results=[]
 for scenario in ['live-writing','live-followup']:
     output=base/scenario;output.mkdir()
-    settings={'PIP_HOME':str(home),'PIP_TEST':'1','PIP_PROBE_OUTPUT':str(output),'PIP_CLAUDE_ALLOWED':'1','PIP_SHOW_ON_LAUNCH':'','PIP_PROBE_METADATA_ONLY':'1','PIP_PROBE_OBSERVE_DISPATCH':'1','PIP_PROBE_SCENARIO':scenario}
+    settings={'PIP_HOME':str(home),'PIP_TEST':'1','PIP_PROBE_OUTPUT':str(output),'PIP_LIVE_MODEL_ALLOWED':'1','PIP_SHOW_ON_LAUNCH':'','PIP_PROBE_METADATA_ONLY':'1','PIP_PROBE_OBSERVE_DISPATCH':'1','PIP_PROBE_SCENARIO':scenario}
     command=['/usr/bin/open','-n','-W']
     for k,v in settings.items():command.extend(['--env',k+'='+v])
     command.extend(['--stdout',str(output/'app-stdout.txt'),'--stderr',str(output/'app-stderr.txt'),str(app)])
@@ -24,7 +24,7 @@ for scenario in ['live-writing','live-followup']:
     try:
         subprocess.run(command,check=True,timeout=40,capture_output=True,text=True)
         facts=json.loads((output/'native-probe.json').read_text())
-        required=['panelIsKey','resummonPanelIsKey','draftSurvivedHide','typedInitially','typedAfterResummon','nativeEscapeHide','nativeReturnSubmitted','liveClaudeDraftVisible','preCallIdentityMatched','generatedDraftPictureSaved']
+        required=['panelIsKey','resummonPanelIsKey','draftSurvivedHide','typedInitially','typedAfterResummon','nativeEscapeHide','nativeReturnSubmitted','liveDraftVisible','preCallIdentityMatched','generatedDraftPictureSaved']
         if scenario=='live-followup':required.append('selectedContextPreserved')
         failures=[k for k in required if facts.get(k) is not True]
         if facts.get('failure'):failures.append(facts['failure'])

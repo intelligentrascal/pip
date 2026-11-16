@@ -1,4 +1,5 @@
 import {test,expect,type Page} from '@playwright/test';
+import {openMore} from '../helpers/chat-page.js';
 import {mkdir,mkdtemp,writeFile} from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
@@ -28,14 +29,14 @@ async function open(page:Page){
   if(m.kind==='provider.remove')await manager.remove(id);
   if(m.kind==='provider.backup')await manager.setBackup(id);
  });
- await page.goto('/');ready=true;await receive();await page.locator('#settings').click();
+ await page.goto('/');ready=true;await receive();await openMore(page,'Settings');
  return {manager,messages,finishLogin:async()=>{await loginReady;finishLogin();}};
 }
 async function capture(page:Page,name:string){if(process.env.PIP_CAPTURE_DIR)await page.screenshot({path:path.join(process.env.PIP_CAPTURE_DIR,name+'.png'),clip:{x:25,y:375,width:640,height:710}});}
 
 test('ChatGPT Allow, waiting, cancel, connection, model, backup and Remove preserve private boundaries',async({page})=>{
  const env=await open(page);const row=page.locator('[data-provider=openai]');
- await row.scrollIntoViewIfNeeded();await expect(row).toContainText('Not connected · Not allowed');await expect(row.getByRole('button',{name:'Use ChatGPT plan',exact:true})).toBeDisabled();
+ await row.scrollIntoViewIfNeeded();await expect(row).toContainText('Not connected · Not allowed');await expect(row.getByRole('button',{name:'Use this model',exact:true})).toBeDisabled();
  await capture(page,'settings-after');
  await row.getByRole('button',{name:'Review Allow'}).click();await expect(page.getByRole('heading',{name:'Let Pip send requests to ChatGPT plan?'})).toBeVisible();
  await page.getByRole('heading',{name:'Let Pip send requests to ChatGPT plan?'}).scrollIntoViewIfNeeded();await capture(page,'chatgpt-allow-top');
@@ -50,7 +51,8 @@ test('ChatGPT Allow, waiting, cancel, connection, model, backup and Remove prese
  await row.getByRole('button',{name:'Continue with ChatGPT'}).click();await expect(row.getByRole('button',{name:'Waiting for sign-in…'})).toBeDisabled();await env.finishLogin();
  await expect(row).toContainText('Connected · Allowed');await expect(page.locator('input[type=password], [data-provider] input, [data-provider] textarea')).toHaveCount(0);
  await capture(page,'chatgpt-connected-fixture');
- // The already-allowed ChatGPT connection may be named as the one backup.
+ // The already-allowed ChatGPT connection may be named as the one backup while another provider is active.
+ await env.manager.select('deepseek');await expect(page.locator('[data-provider=deepseek]')).toContainText('Active');
  await expect(page.locator('#provider-backup option')).toHaveText(['None','ChatGPT plan']);
  await page.locator('#provider-backup').selectOption('openai');await expect(row).toContainText('Backup');
  await row.getByRole('button',{name:'Use ChatGPT plan',exact:true}).click();await expect(row).toContainText('Active');

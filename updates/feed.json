@@ -1,0 +1,16 @@
+{
+  "schema": 1,
+  "product": "pip",
+  "releases": [
+    {
+      "version": "0.1.0-alpha.1",
+      "channel": "alpha",
+      "minimumSystemVersion": "14.0",
+      "architecture": "arm64",
+      "url": "https://github.com/intelligentrascal/pip/releases/download/v0.1.0-alpha.1/Pip-0.1.0-alpha.1-arm64.zip",
+      "sha256": "a9d5055cf596bc525ea801e0d112f4922a149171f5355f246dbde6f0d097862f",
+      "size": 102900777,
+      "notes": "First alpha: a signed, notarized Apple-silicon Mac app."
+    }
+  ]
+}

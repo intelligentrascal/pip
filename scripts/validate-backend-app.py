@@ -15,7 +15,7 @@ for index in range(1,count+1):
     home=pathlib.Path(tempfile.mkdtemp(prefix='pip-backend-app-',dir=sandbox));(home/'.pip-test-home').write_text('pip-test-only')
     targets=[{'id':str(uuid.uuid4()),'title':'Fixture reminders','kind':'reminder','writable':True,'revision':str(uuid.uuid4())}]
     (home/'backend-seed.json').write_text(json.dumps({'targets':targets,'objects':[],'access':True,'notificationPermission':'granted'}))
-    settings={'PIP_TEST':'1','PIP_HOME':str(home),'PIP_TEST_ROOT':str(sandbox),'PIP_ISOLATED_BACKENDS':'1','PIP_BACKEND_PROBE_OUTPUT':str(evidence),'PIP_CLAUDE_ALLOWED':'','PIP_SHOW_ON_LAUNCH':'','PIP_PROBE_OUTPUT':''}
+    settings={'PIP_TEST':'1','PIP_HOME':str(home),'PIP_TEST_ROOT':str(sandbox),'PIP_ISOLATED_BACKENDS':'1','PIP_BACKEND_PROBE_OUTPUT':str(evidence),'PIP_SHOW_ON_LAUNCH':'','PIP_PROBE_OUTPUT':''}
     command=['/usr/bin/open','-n','-W']
     for key,value in settings.items():command.extend(['--env',key+'='+value])
     command.extend(['--stdout',str(evidence/'app-stdout.txt'),'--stderr',str(evidence/'app-stderr.txt'),str(app)])

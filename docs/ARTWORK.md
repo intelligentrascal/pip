@@ -11,14 +11,12 @@ not establish rights in third-party material or guarantee copyright in AI output
 | --- | --- | --- |
 | Vector companion and menu mark | Original authored SVG; matching local PNG exports | Eligible original rights offered under CC BY 4.0 |
 | Curious Hearth painted parts | Original vector reference → FLUX.2 [pro] Hearth study → GPT Image 1.5 selected painting through Comfy Cloud → local mirror, masks, cropped parts, reconstructed backing, registration and contour | No blanket CC BY grant or independent reference-chain clearance is claimed |
-| Smoke texture in `web/smoke-pixels.js` | Nano Banana 2.1 output through Comfy Cloud, locally processed into texture data | Provider/output limitations remain recorded; original code wrapper is MIT |
-| Paper grain | Procedural app-authored rendering | Original code is MIT |
-| README screenshots and memory GIF | Fresh own-window captures with an automated disposable profile and real local save | Inspected derivatives and hashes in `docs/media/manifest.json`; underlying artwork keeps its qualified license scope |
+| README pictures, memory and Magic recordings | Fresh own-window captures of the Lantern window with an automated disposable profile (real local save; scripted summon and pointer path) | Inspected derivatives and hashes in `docs/media/manifest.json`; underlying artwork keeps its qualified license scope |
 
 A failed paper-generation request supplied no artwork. No film footage, game
 texture, outside reference screenshot, private job identifier or account metadata
 belongs in the publication package. New public media must name any fixture-driven
-behavior and retain a static equivalent for the GIF.
+behavior and retain a static equivalent for each GIF and recording.
 
 ## Terms checked during preparation
 
