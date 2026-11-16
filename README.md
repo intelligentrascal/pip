@@ -21,7 +21,7 @@ standing beside it. The window is dark with one amber accent and follows your Ma
 light and dark setting. The elf is alive: he breathes, blinks, follows your pointer
 and works with a lantern and three scrolls.
 
-> **Experimental alpha, not full v1 acceptance.** The first alpha, 0.1.0-alpha.1, is a signed and
+> **Experimental alpha, not full v1 acceptance.** The latest alpha, 0.1.0-alpha.2, is a signed and
 > notarized Apple-silicon Mac app: download it from the
 > [releases page](https://github.com/intelligentrascal/pip/releases), or install it with
 > Homebrew (see [Install](#install)). It is early software with the limits listed in
@@ -34,7 +34,7 @@ Pip needs an Apple-silicon Mac (M1 or later) running macOS 14 or later. It is te
 macOS 14 is the declared minimum and has not been tested. Intel Macs are not supported.
 
 - **Download.** Open the [latest release](https://github.com/intelligentrascal/pip/releases),
-  download `Pip-0.1.0-alpha.1-arm64.dmg`, open it and drag Pip to Applications. A ZIP and
+  download `Pip-0.1.0-alpha.2-arm64.dmg`, open it and drag Pip to Applications. A ZIP and
   `SHA256SUMS` are beside it. The app is signed with a Developer ID and notarized by Apple, so
   macOS opens it without any security workaround. It brings its own Node runtime; you install nothing else.
 - **Homebrew.** `brew install --cask intelligentrascal/tap/pip-house-elf`.
@@ -254,7 +254,7 @@ historical records, backups and provider copies may remain.
 capability is claimed. The current browser path is read-only agent browsing;
 Calendar, Reminders and notifications are unconnected.
 
-**Is there a signed download or Homebrew package?** Yes, for Apple-silicon Macs: the 0.1.0-alpha.1
+**Is there a signed download or Homebrew package?** Yes, for Apple-silicon Macs: the 0.1.0-alpha.2
 disk image and ZIP on the [releases page](https://github.com/intelligentrascal/pip/releases) are signed
 and notarized, and the Homebrew cask is `intelligentrascal/tap/pip-house-elf`. Pip menu > Check for
 Updates… replaces the app after you choose Download and restart. Do not distribute the unsigned

@@ -99,10 +99,42 @@ test('a paused send shows what would be sent and goes ahead only after Send it',
   });
   await page.goto('/');
   await composer(page).fill('Look at the tasca page for a table on Saturday');await page.getByRole('button',{name:'Send',exact:true}).click();
-  const dock=page.getByRole('group',{name:'Paused step'});await expect(dock.getByRole('heading',{name:'Send this?'})).toBeVisible();
+  const dock=page.getByRole('group',{name:'Paused step'});await expect(dock.getByRole('heading',{name:'Send this to bookings@tasca.example?'})).toBeVisible();
   await expect(dock).toContainText('You did not ask for this');await expect(dock.locator('pre')).toContainText('bookings@tasca.example');expect(sent).toEqual([]);await capture('paused-step');
+  // ELF-65's paused panel is compact: the question and its reason sit beside the two named buttons, not above them (ELF-73, gap 4); what would be sent shows in a box capped at four lines.
+  const [panel,answer,question]=await Promise.all([dock.boundingBox(),dock.getByRole('button',{name:'Send it',exact:true}).boundingBox(),dock.getByRole('heading').boundingBox()]);
+  expect(panel!.height).toBeLessThanOrEqual(170);expect(answer!.x).toBeGreaterThan(question!.x+question!.width-1);expect(question!.y).toBeLessThan(answer!.y+answer!.height);
+  // At a paused step Pip faces the person once the pointer rests, even when words are typed in the message box (the captain's settled gaze rule).
+  await composer(page).fill('Not that one');await composer(page).focus();
+  expect(await page.evaluate(()=>document.querySelector<any>('pip-character').aim(performance.now()+3000))).toEqual([0,0]);
   await dock.getByRole('button',{name:'Send it',exact:true}).click();
   await expect.poll(async()=>(await host.snapshot()).works[0].status).toBe('Done');
   expect(sent).toEqual(['message.send']);
+ }finally{await host.close();}
+});
+
+// Intent: ELF-65's agreed design: one ⌘Return answers a paused step once (ELF-73, gap 6: two handlers each answered, so one press sent two approvals).
+// Fixture: the same real host and scripted send as above; the bridge counts the page's own messages.
+test('one ⌘Return approves a paused step once, whether the message box or the page has focus',async({page:browserPage})=>{
+ page=browserPage;
+ const base=process.env.PIP_TEST_ROOT??path.join(os.tmpdir(),'pip-ui-fixtures');await mkdir(base,{recursive:true});const home=await mkdtemp(path.join(base,'pip-'));await writeFile(path.join(home,'.pip-test-home'),'pip-test-only');
+ const {faux,engine}=fauxEngine();
+ const sent:string[]=[],messages:any[]=[];
+ routed(faux,request=>request.startsWith('Look at')?calls(['send_message',{channel:'email',to:'bookings@tasca.example',subject:'Booking',text:'Table for two on Saturday at 8.'}]):said('Nothing else.'));
+ host=await openHost({home,fixture:true,engine,changed:()=>{void receive().catch(()=>{});},native:p=>{sent.push(p.action.type);setTimeout(()=>void host.receipt(p.id,'succeeded','Sent on the stand-in Mac.'),1);}});
+ try{
+  await page.exposeFunction('pipTestBridge',async(m:any)=>{
+   messages.push(m);const p=m.payload;
+   if(m.kind==='submit')await host.submit(m.id,p.request,p.contextWorkId);
+   if(m.kind==='approve')await host.approve(p.id,p.revision,p.digest);
+   if(m.kind==='snapshot')await receive();
+  });
+  await page.goto('/');
+  await composer(page).fill('Look at the tasca page for a table on Saturday');await page.getByRole('button',{name:'Send',exact:true}).click();
+  await expect(page.getByRole('group',{name:'Paused step'})).toBeVisible();
+  await composer(page).focus();await page.keyboard.press('Meta+Enter');
+  await expect.poll(async()=>(await host.snapshot()).works[0].status).toBe('Done');
+  await page.waitForTimeout(300);
+  expect(messages.filter(m=>m.kind==='approve').length).toBe(1);expect(sent).toEqual(['message.send']);
  }finally{await host.close();}
 });

@@ -3,7 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { openHost, RUN_LIMITS, type Host, type ConversationMessage } from './pi-durable-adapter.js';
 import { idle, replay, type Live } from './live.js';
-import { repliesOf } from './reply.js';
+import { repliesOf, liveBlocks } from './reply.js';
 import { ProviderManager } from './providers.js';
 import { text } from './domain.js';
 import { resolvePublic } from './public-web.js';
@@ -25,7 +25,7 @@ const changed=()=>{if(host)void host.snapshot().then(async state=>{
 });};
 // What the conversation is doing now: rows, words and turns, sent at most every 60 ms so a long answer never floods the page.
 let live:Live=idle(),liveTimer:ReturnType<typeof setTimeout>|undefined;
-const sendLive=()=>{liveTimer=undefined;write('live',{...live,limits:RUN_LIMITS,now:Date.now()});};
+const sendLive=()=>{liveTimer=undefined;write('live',{...live,blocks:liveBlocks(live.words),limits:RUN_LIMITS,now:Date.now()});};
 const onConversation=(message:ConversationMessage)=>{
  write('conversation',message);
  if(!('events' in message))return;

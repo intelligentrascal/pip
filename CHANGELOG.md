@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.1.0-alpha.2
+
+The second public alpha: the same signed, notarized Apple-silicon app, with the Lantern
+window and effects brought to the settled design. It is also the first release that
+0.1.0-alpha.1 can offer through Pip menu > Check for Updates…. It is experimental.
+
+### Window and effects
+
+- The window, the effects past its edge, the paused panel and inline dictation follow the
+  settled design (see [Lantern](docs/LANTERN.md), [Magic](docs/MAGIC.md) and
+  [dictation](docs/DICTATION.md)). The paused panel shows the whole message a paused step would send.
+
+### Replies and saved chats
+
+- An answer's parts reach the window as the reply arrives, and a finished chat keeps each of
+  its steps when you reopen it.
+
 ## 0.1.0-alpha.1
 
 The first public alpha: a signed, notarized, self-contained Apple-silicon Mac app, a

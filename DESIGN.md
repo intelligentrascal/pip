@@ -81,8 +81,10 @@ meaningful status has literal text.
 - **Task browser:** reviewed public scope, live Watch and an exclusive private
   Take over/Return control boundary. Hide private frames during takeover; inspect
   freshly after return. No consequential submission follows from browsing consent.
-- **Dictation:** explicit Talk, on-device boundary, editable transcript review,
-  separate Add to message and Send. Typing remains available. Summoning starts
+- **Dictation:** explicit Talk, on-device boundary. The words appear live in the
+  message box itself, which turns read-only with the Talk button lit and five level
+  bars. The first Return only stops listening; the words stay editable and nothing is
+  sent until a second Return or Send. Typing remains available. Summoning starts
   neither microphone capture nor screen sharing.
 
 Escape closes the menu, stops work, cancels dictation, leaves a secondary view and finally hides the window. Hiding is not Stop and

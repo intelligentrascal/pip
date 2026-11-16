@@ -231,7 +231,7 @@ $('grip-t').addEventListener('pointerdown', e => dragEdge('top', e));
 
 /* The live rows of the working turn: one 22 px row per step, only the current one spins. Rows are kept and updated, never rebuilt, so the spinner keeps turning. */
 class LiveBox {
- constructor() { this.el = node('div', undefined, 'acs'); this.rows = new Map(); this.words = node('div', undefined, 'md live-words'); this.shown = ''; this.box = node('div', undefined, 'lv-box'); this.box.append(this.el, this.words); }
+ constructor(draw) { this.draw = draw; this.el = node('div', undefined, 'acs'); this.rows = new Map(); this.body = node('div', undefined, 'lv-body'); this.shown = []; this.drewParts = false; this.box = node('div', undefined, 'lv-box'); this.box.append(this.el, this.body); }
  row(id) {
   let row = this.rows.get(id);
   if (!row) { row = { el: node('div', undefined, 'ac'), mark: node('span'), text: node('span'), time: node('time') }; row.el.append(row.mark, row.text, row.time); this.rows.set(id, row); this.el.append(row.el); }
@@ -241,32 +241,46 @@ class LiveBox {
   row.text.textContent = label; row.time.textContent = ms === undefined ? '' : seconds(ms);
   row.el.className = 'ac ' + ({ running: 'lv', done: 'ok', failed: 'bad' }[status] ?? '');
   const want = status === 'running' ? 'sp' : status;
-  if (row.status !== want) { if (want === 'ok' && row.status === 'sp') magic.step(); row.status = want; row.mark.replaceWith(row.mark = want === 'sp' ? node('i', undefined, 'sp') : icon(want === 'failed' ? 'x' : 'ok')); }
+  // A step that finishes sends four embers from the lantern (above Calm).
+  if (row.status !== want) { if (want === 'done' && row.status === 'sp') magic.step(); row.status = want; row.mark.replaceWith(row.mark = want === 'sp' ? node('i', undefined, 'sp') : icon(want === 'failed' ? 'x' : 'ok')); }
  }
+ // The reply as far as it has arrived: words, and each part the moment its block is complete. Blocks only ever grow, so what is drawn stays.
+ blocks(live) { return live?.blocks ?? (live?.words ? [{ type: 'text', text: live.words }] : []); }
  update(live, now, paused = false) {
   const steps = live?.steps ?? [];
   const running = steps.some(s => s.state === 'running');
   for (const step of steps) this.set(this.row(step.id), step.label, step.state, step.state === 'running' ? now - step.startedAt : step.milliseconds);
   if (live?.running && !running && !live.words && !paused) this.set(this.row('thinking'), steps.length ? 'Thinking…' : 'Thinking', 'running', now - (steps.at(-1) ? steps.at(-1).startedAt + (steps.at(-1).milliseconds ?? 0) : live.startedAt));
   else if (this.rows.has('thinking')) { this.rows.get('thinking').el.remove(); this.rows.delete('thinking'); }
-  this.words.hidden = !live?.words;
-  const words = live?.words ?? '';
-  if (words !== this.shown) {
-   // New words fade in over 160 ms; a text that was replaced rather than extended is drawn again whole.
-   if (!words.startsWith(this.shown)) this.words.replaceChildren();
-   const added = words.startsWith(this.shown) ? words.slice(this.shown.length) : words;
-   if (added) { const span = node('span', added, 'w'); this.words.append(span); }
-   this.shown = words;
-  }
+  const blocks = this.blocks(live);
+  this.body.hidden = !blocks.length;
+  blocks.forEach((block, i) => {
+   const had = this.shown[i], key = block.type === 'text' ? block.text : JSON.stringify(block.parts);
+   if (had && had.type === block.type) {
+    if (block.type === 'parts' ? had.key === key : key === had.key) return;
+    // New words fade in over 160 ms; a text that was replaced rather than extended is drawn again whole.
+    if (block.type === 'text' && key.startsWith(had.key)) { had.el.append(node('span', key.slice(had.key.length), 'w')); had.key = key; return; }
+   }
+   for (const old of this.shown.splice(i)) old.els.forEach(el => el.remove());
+   const els = [];
+   if (block.type === 'text') { const el = node('div', undefined, 'live-words'); el.append(node('span', key, 'w')); els.push(el); this.shown.push({ type: 'text', key, el, els }); }
+   else { for (const part of block.parts) { const el = this.draw(part); if (!el.classList.contains('nt')) el.classList.add('ar'); els.push(el); } this.shown.push({ type: 'parts', key, els }); this.drewParts = true; queueMicrotask(() => { for (const el of els) if (el.isConnected) magic.part(el); }); }
+   this.body.append(...els);
+  });
+  for (const old of this.shown.splice(blocks.length)) old.els.forEach(el => el.remove());
  }
 }
 let liveBox = null, liveFor = null;
+const drewLive = new Set();
+// A choice inside a part that is still arriving answers the work being done, the same as typing it.
+const liveCtx = { choose: label => { const target = steerTarget(); if (target) steer(label, target); else send(label); }, openUrl: url => openUrl(url), proposal: a => { emit('propose', { action: a }); view = 'chat'; } };
+const endLive = id => { if (id && liveBox?.drewParts) drewLive.add(id); liveBox = null; liveFor = null; };
 
 /* One turn: your message, then the work (live rows or a folded line), then the reply, a problem or both. */
 function openUrl(url) { emit('propose', { action: { type: 'url.open', url } }); }
 const askAgain = w => send(w.request, { retry: true });
 function replyFor(w, fresh) {
- const r = w.result, root = node('div', undefined, 'tn' + (fresh ? ' ar' : '')), arrived = [];
+ const r = w.result, root = node('div', undefined, 'tn' + (fresh ? ' ar' : '')), arrived = [], drawnLive = drewLive.has(w.id);
  const blocks = (replies[w.id] ?? [{ type: 'text', text: r.text }]).map(b => ({ ...b }));
  // A choice stays answered after the redraw: the next message in this chat is the one that picked it.
  const turns = chats().find(c => c.works.some(x => x.id === w.id))?.works ?? [], next = turns[turns.findIndex(x => x.id === w.id) + 1];
@@ -288,7 +302,7 @@ function replyFor(w, fresh) {
   if (first && first === r.title && head.length > 1 && !head[1].trim()) { const h = node('div', undefined, 'md'); h.append(node('h3', r.title)); root.append(h); blocks[0].text = head.slice(2).join('\n'); }
   for (const block of blocks) {
    if (block.type === 'text') { if (block.text.trim()) root.append(window.pipMarkdown(block.text, openUrl)); continue; }
-   for (const part of block.parts) { const el = window.pipParts.render(part, ctx); if (fresh && !el.classList.contains('nt')) { el.classList.add('ar'); arrived.push(el); } root.append(el); }
+   for (const part of block.parts) { const el = window.pipParts.render(part, ctx); if (fresh && !drawnLive && !el.classList.contains('nt')) { el.classList.add('ar'); arrived.push(el); } root.append(el); }
   }
  }
  const row = node('div', undefined, 'sr0');
@@ -312,7 +326,7 @@ function problemFor(w) {
  return box;
 }
 function foldFor(w) {
- const steps = stepsByWork.get(w.id), ms = w.usage?.activeMilliseconds;
+ const steps = stepsByWork.get(w.id) ?? w.steps, ms = w.usage?.activeMilliseconds;
  if (!steps?.length && !ms) return null;
  const wrap = node('div', undefined, 'acs'), head = button(undefined, () => { const open = head.getAttribute('aria-expanded') !== 'true'; head.setAttribute('aria-expanded', String(open)); list.hidden = !open; if (open) opened.add(w.id); else opened.delete(w.id); }, 'ac');
  const label = `Worked ${ms ? seconds(ms) : 'a moment'}${steps?.length ? `, ${steps.length} ${steps.length === 1 ? 'step' : 'steps'}` : ''}`;
@@ -329,7 +343,7 @@ function turnFor(w) {
  t.append(node('div', w.request, 'me'));
  const status = w.status;
  if (status === 'Queued') { const a = node('div', undefined, 'acs'), row = node('div', undefined, 'ac lv'); row.append(node('i', undefined, 'sp'), node('span', 'Waiting its turn')); a.append(row); t.append(a); }
- else if (status === 'Working') { liveBox ??= new LiveBox(); liveFor = w.id; liveBox.update(liveMsg, Date.now(), !!pausedProposal()); t.append(liveBox.box, ...steersFor(w)); }
+ else if (status === 'Working') { liveBox ??= new LiveBox(part => window.pipParts.render(part, liveCtx)); liveFor = w.id; liveBox.update(liveMsg, Date.now(), !!pausedProposal()); t.append(liveBox.box, ...steersFor(w)); }
  else {
   const fold = foldFor(w); if (fold) t.append(fold);
   t.append(...steersFor(w));
@@ -345,7 +359,7 @@ function turnFor(w) {
 function renderConversation() {
  const cv = $('cv'), chat = currentChat();
  const pinned = cv.scrollHeight - cv.scrollTop - cv.clientHeight < 48, top = cv.scrollTop;
- if (liveFor && (!workingWork() || workingWork().id !== liveFor)) { liveBox = null; liveFor = null; }
+ if (liveFor && (!workingWork() || workingWork().id !== liveFor)) endLive(liveFor);
  cv.replaceChildren(...(chat ? chat.works.map(turnFor) : []));
  for (const held of state.proposals.filter(p => p.status === 'unknown')) cv.append(window.pipParts.render({ kind: 'note', tone: 'warn', text: held.receipt + ' ' + JSON.stringify(held.action) }));
  for (const w of chat?.works ?? []) if (w.result && !seenResults.has(w.id)) seenResults.add(w.id);
@@ -359,7 +373,15 @@ new ResizeObserver(() => { const cv = $('cv'); if (followNewest && !cv.hidden) c
 $('latest').onclick = () => { followNewest = true; const cv = $('cv'); cv.scrollTop = cv.scrollHeight; $('latest').hidden = true; $('composer').focus(); };
 
 /* The paused step: a panel above the message box. The safe button is first; the accent button names the act. */
-const VERBS = { send: ['Send this?', 'Do not send', 'Send it', 'sends it'], pay: ['Make this payment?', 'Do not pay', 'Pay', 'pays'], publish: ['Publish this?', 'Do not publish', 'Publish', 'publishes it'], delete: ['Delete this?', 'Keep it', 'Delete', 'deletes it'] };
+const VERBS = { send: ['Send this?', 'Do not send', 'Send it', 'sends it', 'send'], pay: ['Make this payment?', 'Do not pay', 'Pay', 'pays', 'pay'], publish: ['Publish this?', 'Do not publish', 'Publish', 'publishes it', 'publish'], delete: ['Delete this?', 'Keep it', 'Delete', 'deletes it', 'delete'] };
+// The question names what is held, in the words of the step's own details: "Send this to ana@example.com?". Without a name it stays the plain question.
+const AIMS = ['to', 'recipient', 'payee', 'destination', 'where', 'target', 'title', 'path', 'name', 'item'];
+function heldQuestion(kind, details) {
+ const [plain] = VERBS[kind] ?? VERBS.send, verb = plain.replace(/ this.*$/, '');
+ const fields = new Map(String(details).split('\n').map(line => line.match(/^([a-z_]+):\s*(.+)$/i)).filter(Boolean).map(m => [m[1].toLowerCase(), m[2].trim()]));
+ const aim = AIMS.map(name => fields.get(name)).find(value => value && value.length <= 60);
+ return aim ? (kind === 'delete' ? `Delete ${aim}?` : kind === 'pay' ? `Pay ${aim}?` : `${verb} this to ${aim}?`) : plain;
+}
 let dockFor = '';
 function renderDock() {
  const p = pausedProposal(), dock = $('dock');
@@ -367,17 +389,22 @@ function renderDock() {
  if (!p) { dockFor = ''; magic.pause(false); return; }
  if (dockFor === p.id) return;
  dockFor = p.id;
- const [question, no, yes] = VERBS[p.action.kind] ?? VERBS.send;
+ const [, no, yes, , verb] = VERBS[p.action.kind] ?? VERBS.send;
  const ph = node('div', undefined, 'ph'); ph.append(node('b', 'Paused'), node('span', 'You did not ask for this'));
  const rw = node('div', undefined, 'rw');
  const yesButton = button(yes, () => runPaused(p), 'bt pm'); yesButton.id = 'allow';
  rw.append(button(no, () => { emit('cancel', { id: p.id }); }, 'bt'), yesButton);
- const ask = node('div', undefined, 'dq'); ask.append(node('h4', question), node('p', p.action.summary.replace(/:\s*$/, '.') + ' Nothing has happened yet.'), node('pre', p.action.details));
+ const ask = node('div', undefined, 'dq'); ask.append(node('h4', heldQuestion(p.action.kind, p.action.details)), node('p', `Pip wants to ${verb} this. Nothing has happened yet.`));
+ // What the step would do stays in view as plain lines, so the person reads it before choosing.
+ if (p.action.details) ask.append(node('pre', p.action.details));
  dock.replaceChildren(ph, ask, rw);
- dock.classList.remove('sw'); void dock.offsetWidth; dock.classList.add('sw');
+ // Arrival: the panel's border lights in copper once embers reach it (magic.pause), never at Calm.
+ dock.classList.remove('sw');
  magic.pause(true, dock);
 }
-function runPaused(p) { for (const b of $('dock').querySelectorAll('button')) b.disabled = true; magic.yes(); emit('approve', { id: p.id, revision: p.revision, digest: p.digest }); }
+// One press answers once: the shortcut can reach this from the message box and from the page, and a second press on the same step does nothing.
+const approving = new Set();
+function runPaused(p) { if (approving.has(p.id)) return; approving.add(p.id); for (const b of $('dock').querySelectorAll('button')) b.disabled = true; magic.yes(); emit('approve', { id: p.id, revision: p.revision, digest: p.digest }); }
 
 /* Chats: the list replaces the conversation, not the window. */
 let chatQuery = '', chatIndex = 0;
@@ -414,7 +441,7 @@ function footer() {
  const pause = pausedProposal(), act = VERBS[pause?.action.kind]?.[3] ?? 'sends it';
  const text = {
   ready: ['Saved on this Mac', `${hotkey} hides`], working: [`${count} · ${clock(elapsed)} of ${clock(limits.milliseconds)}`, typed ? (steerTarget() ? 'Return redirects Pip · Esc stops' : 'Return asks it next · Esc stops') : 'Esc stops'],
-  paused: [`${count} · paused`, `⌘Return ${act}`], threads: ['Saved on this Mac', 'Esc goes back'], talk: ['Listening on this Mac. Nothing sends until you press Return.', 'Esc cancels'],
+  paused: [`${count} · paused`, `⌘Return ${act}`], threads: ['Saved on this Mac', 'Esc goes back'], talk: ['Listening on this Mac. Nothing sends until you review it.', 'Return stops · Esc cancels'],
   problem: ['Your message is kept', `${hotkey} hides`]
  }[s];
  if (!noticeOn) $('status').textContent = text[0];
@@ -452,10 +479,12 @@ function render() {
  renderDock(); header(); footer(); input(); updateCharacter(); updateClock(); fit();
  if (p && view !== 'chat') notice('A saved action needs your approval.');
 }
-/* One timer, only while Pip works: the clock in the bottom row and the time on the running row. */
-let clockTimer = 0;
+/* One timer, only while Pip works and the window is on screen: the clock in the bottom row and the time on the running row. Pip's work goes on
+   while the window is hidden; only drawing it stops. */
+let clockTimer = 0, windowAway = false;
+const onScreen = () => !document.hidden && !windowAway;
 function updateClock() {
- if (workingWork()) { if (!clockTimer) clockTimer = setInterval(() => { footer(); if (liveBox && liveFor) liveBox.update(liveMsg, Date.now(), !!pausedProposal()); }, 500); }
+ if (workingWork() && onScreen()) { if (!clockTimer) clockTimer = setInterval(() => { footer(); if (liveBox && liveFor) liveBox.update(liveMsg, Date.now(), !!pausedProposal()); }, 500); }
  else if (clockTimer) { clearInterval(clockTimer); clockTimer = 0; }
 }
 function updateCharacter() {
@@ -471,8 +500,8 @@ function focusPoint() {
  if (document.body.classList.contains('out') || document.hidden) return null;
  const s = scene(), win = $('win').getBoundingClientRect(), composer = $('composer');
  let el = null, along = .7;
- if (document.activeElement === composer && composer.value) { const box = composer.getBoundingClientRect(); return [box.left + Math.min(box.width - 24, 14 + composer.value.length * 7), box.top + Math.min(box.height, 22) / 2]; }
  if (s === 'paused') return null;
+ if (document.activeElement === composer && composer.value) { const box = composer.getBoundingClientRect(); return [box.left + Math.min(box.width - 24, 14 + composer.value.length * 7), box.top + Math.min(box.height, 22) / 2]; }
  if (s === 'threads') el = $('tl');
  else if (s === 'working') el = $('cv').querySelector('.acs .lv') || $('cv').querySelector('.acs .ac:last-child') || $('cv').querySelector('.tn:last-child');
  else if (s === 'problem') el = $('cv').querySelector('.pb') || $('cv').querySelector('.tn:last-child');
@@ -514,11 +543,13 @@ function send(raw, { retry = false } = {}) {
  if (!retry) { $('composer').value = ''; autosize(); }
  render();
 }
-function autosize() { const c = $('composer'); c.style.height = 'auto'; c.style.height = Math.min(c.scrollHeight, 114) + 'px'; }
+// The message box grows to six lines before it scrolls: the limit is the line height times six, plus the box's own padding (CSS max-height).
+function autosize() { const c = $('composer'); c.style.height = 'auto'; c.style.height = Math.min(c.scrollHeight, parseFloat(getComputedStyle(c).maxHeight) || 139) + 'px'; }
 $('ask').onsubmit = e => {
  e.preventDefault();
  if ($('send').dataset.mode === 'stop') { emit('stop'); return; }
- if (dictation.pending) { notice('Stop and review dictation, or cancel it, before Send. Nothing was sent.'); return; }
+ // Return while listening only stops the capture, so the words can be read before anything is sent.
+ if (dictation.pending) { dictation.stopListening(); return; }
  const rawRequest = $('composer').value, request = rawRequest.trim(); if (!request) return;
  if (feedbackComposerRequest) { notice('A local feedback save is awaiting its receipt. Your message is kept.'); return; }
  const feedback = request.match(/^(?:log|save) (?:a )?(bug|feature request|issue)(?: about pip)?:\s*([\s\S]+)$/i);
@@ -526,7 +557,6 @@ $('ask').onsubmit = e => {
  const target = steerTarget(); if (target) steer(rawRequest, target); else send(rawRequest);
 };
 $('composer').onkeydown = e => {
- if (e.key === 'Enter' && e.metaKey && pausedProposal()) { e.preventDefault(); runPaused(pausedProposal()); return; }
  if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); $('ask').requestSubmit(); }
 };
 $('composer').oninput = () => { emit('saveComposer', { text: $('composer').value }); autosize(); input(); footer(); };
@@ -548,7 +578,7 @@ function toggleMenu(force) {
 document.addEventListener('click', e => { if (!$('menu').hidden && !e.target.closest('#menu, #more')) toggleMenu(false); });
 $('menu').addEventListener('keydown', e => { const items = [...$('menu').querySelectorAll('button')], i = items.indexOf(document.activeElement); if (e.key === 'ArrowDown') { e.preventDefault(); items[(i + 1) % items.length].focus(); } if (e.key === 'ArrowUp') { e.preventDefault(); items[(i - 1 + items.length) % items.length].focus(); } });
 $('talk').append(icon('mic'));
-const dictation = new window.PipDictation({ emit, reveal, changed: () => { listen(); render(); }, level: setLevel });
+const dictation = new window.PipDictation({ emit, reveal, changed: () => { listen(); autosize(); render(); }, level: setLevel, notice });
 function listen() { listening = dictation.state === 'capturing' || dictation.state === 'stopping'; }
 function setLevel(value) { [...$('level').children].forEach((bar, i) => { bar.style.height = Math.round(3 + 13 * Math.max(0, Math.min(1, value)) * [.45, .85, .6, 1, .5][i]) + 'px'; }); }
 for (const b of document.querySelectorAll('[data-prompt]')) b.onclick = () => { $('composer').value = b.dataset.prompt; $('composer').focus(); emit('saveComposer', { text: $('composer').value }); autosize(); input(); footer(); };
@@ -581,8 +611,8 @@ window.pipReceive = message => {
   state = next; replies = message.payload.replies ?? {}; providers = message.payload.providers?.providers ?? []; window.pipProviderName = providerName(); workViews = message.payload.workViews ?? [];
   const now = workingWork();
   // The run that just ended keeps its rows, so its folded line can open on them.
-  if (before && before.id !== now?.id && liveMsg?.steps?.length) { stepsByWork.set(before.id, liveMsg.steps.map(s => s.state === 'running' ? { ...s, state: 'done' } : s)); liveMsg = null; liveBox = null; liveFor = null; }
-  if (now && now.id !== before?.id) { liveMsg = null; liveBox = null; liveFor = null; }
+  if (before && before.id !== now?.id && liveMsg?.steps?.length) { stepsByWork.set(before.id, liveMsg.steps.map(s => s.state === 'running' ? { ...s, state: 'done' } : s)); liveMsg = null; endLive(before.id); }
+  if (now && now.id !== before?.id) { liveMsg = null; endLive(before?.id); }
   if (!initialized) { $('composer').value = state.composer; autosize(); applySummonView(); }
   render(); initialized = true;
   if (receipt && !pausedProposal()) notice(receipt.receipt);
@@ -600,16 +630,17 @@ window.pipReceive = message => {
   flags.most = Number(p.mostHeight) > 0 ? Number(p.mostHeight) : 0; flags.width = Number(p.windowWidth) > 0 ? Number(p.windowWidth) : 0;
   document.body.classList.toggle('reduced-motion', !!p.reducedMotion);
   document.body.classList.toggle('solid', !!p.solid);
+  document.body.classList.toggle('contrast', !!p.contrast);
   character.setReduced(!!p.reducedMotion); if (p.reducedMotion) magic.halt();
   if (p.magic) setMagic(p.magic, false);
   footer(); fit();
  } else if (message.kind === 'summon') {
   const now = performance.now(), short = now - lastSummonAt < QUICK_REPEAT_MS; lastSummonAt = now;
-  applySummonView(); lastCharacter = ''; render(); $('composer').focus();
+  windowAway = false; applySummonView(); lastCharacter = ''; render(); $('composer').focus();
   character.setHidden(false); arrive(); magic.summon({ short }); character.wake();
  } else if (message.kind === 'dictation') { dictation.receive(message.payload); }
  else if (message.kind === 'dictationCancelled') { if (message.payload.session === dictation.session) dictation.cancel({ notify: false }); }
- else if (message.kind === 'popupHidden') { clearTimeout(hiding); hiding = 0; dictation.cancel({ notify: false }); magic.halt(); conceal(); character.setHidden(true); }
+ else if (message.kind === 'popupHidden') { windowAway = true; updateClock(); clearTimeout(hiding); hiding = 0; dictation.cancel({ notify: false }); magic.halt(); conceal(); character.setHidden(true); }
  else if (message.kind === 'hideRequest') requestHide();
  else if (message.kind === 'pointer') { const q = message.payload; if (q.off) character.pointer(null); else character.pointer(Number(q.x), Number(q.y)); }
  else if (message.kind === 'settings') show('settings');
@@ -621,7 +652,7 @@ window.pipReceive = message => {
 window.pipEscape = () => {
  if (!$('menu').hidden) { toggleMenu(false); return true; }
  if (workingWork()) { emit('stop'); return true; }
- if (dictation.pending || !$('dictation').hidden) { dictation.cancel(); return true; }
+ if (dictation.pending) { dictation.cancel(); return true; }
  if (view !== 'chat') { show('chat'); return true; }
  return false;
 };
@@ -639,8 +670,8 @@ document.addEventListener('keydown', e => {
   e.preventDefault(); chatIndex = (chatIndex + (e.key === 'ArrowDown' ? 1 : -1) + rows.length) % rows.length; rows.forEach((r, i) => r.classList.toggle('sel', i === chatIndex)); rows[chatIndex].scrollIntoView({ block: 'nearest' });
  }
 });
-document.addEventListener('visibilitychange', () => { if (document.hidden) dictation.cancel(); });
+document.addEventListener('visibilitychange', () => { if (document.hidden) dictation.cancel(); updateClock(); if (onScreen()) { footer(); if (liveBox && liveFor) liveBox.update(liveMsg, Date.now(), !!pausedProposal()); } });
 addEventListener('blur', () => dictation.cancel());
 // In the native app the window stays hidden until the host's summon message arrives.
-if (window.webkit?.messageHandlers?.pip) { document.body.classList.add('native'); conceal(); }
+if (window.webkit?.messageHandlers?.pip) { document.body.classList.add('native'); conceal(); windowAway = true; }
 render(); emit('snapshot'); $('composer').focus();

@@ -233,11 +233,11 @@ def cask(args):
 
   url "{RELEASE["downloadBase"]}/v#{{version}}/Pip-#{{version}}-{RELEASE["architecture"]}.zip"
   name "Pip"
-  desc "Local-first desktop companion for the Mac"
+  desc "Local-first desktop companion"
   homepage "https://github.com/{RELEASE["repository"]}"
 
-  depends_on macos: ">= :sonoma"
   depends_on arch: :{RELEASE["architecture"]}
+  depends_on macos: :sonoma
 
   app "Pip.app"
 end

@@ -271,7 +271,7 @@ final class Pip: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNavi
         let solid = PanelGeometry.solid(reduceTransparency: NSWorkspace.shared.accessibilityDisplayShouldReduceTransparency, increaseContrast: NSWorkspace.shared.accessibilityDisplayShouldIncreaseContrast)
         backdrop?.isHidden = solid
         let visibleHeight = Double((panel.screen ?? NSScreen.main)?.visibleFrame.height ?? 0)
-        deliver(["kind":"nativeStatus", "payload":["hotkey":hotkeyStatus,"letter":shortcut.letter,"registered":hotkey != nil,"reducedMotion":NSWorkspace.shared.accessibilityDisplayShouldReduceMotion,"solid":solid,"visibleHeight":visibleHeight,"magic":magic.level.rawValue,"windowWidth":windowSize.width,"mostHeight":mostHeight ?? 0]])
+        deliver(["kind":"nativeStatus", "payload":["hotkey":hotkeyStatus,"letter":shortcut.letter,"registered":hotkey != nil,"reducedMotion":NSWorkspace.shared.accessibilityDisplayShouldReduceMotion,"solid":solid,"contrast":NSWorkspace.shared.accessibilityDisplayShouldIncreaseContrast,"visibleHeight":visibleHeight,"magic":magic.level.rawValue,"windowWidth":windowSize.width,"mostHeight":mostHeight ?? 0]])
     }
     func setupAttentionPanel() {
         let badge = NSPanel(contentRect: NSRect(x:0,y:0,width:176,height:164), styleMask:[.borderless,.nonactivatingPanel], backing:.buffered, defer:false)

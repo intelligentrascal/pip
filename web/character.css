@@ -31,7 +31,7 @@ svg [data-pivot]{transform-box:view-box}
 :host([data-pose=working]),:host([data-pose=paused]),:host([data-pose=talking]){--glow:.62}
 :host([data-pose=working]){--la:9deg}
 :host([data-pose=paused]){--la:5deg;--lc:var(--wa,#c8814a)}
-:host([data-pose=problem]){--cd:44px;--la:-4deg;--glow:.06}
+:host([data-pose=problem]){--cd:44px;--la:-4deg;--glow:.06;--lc:var(--da,#f28f80)}
 :host([data-pose=talking]){--la:3deg}
 :host([data-pose=talking]) .glow{animation-duration:.4s}
 :host([data-pose=paused]) [data-role=scroll][data-index="2"]{translate:46px 150px;scale:1.25}
@@ -47,14 +47,14 @@ svg [data-pivot]{transform-box:view-box}
 :host([data-reveal]) [data-role=hand-left]{animation:wave .65s .3s ease-in-out}
 :host([data-reveal=short]) [data-role=hand-left]{animation:none}
 :host([data-bloom]) .glow{opacity:.95;scale:1.9;animation:none}
-.ring{position:absolute;left:0;top:27%;width:100%;height:100%;transform:scaleY(.15);overflow:visible;fill:none;stroke:var(--lc);stroke-width:1.7;opacity:0;transition:opacity .5s;filter:drop-shadow(0 0 5px var(--lc));pointer-events:none}
-:host([data-ring]) .ring g{animation:turn 24s linear infinite}
+/* The circle of light is 190 pt across under Pip (the artwork's outer ring spans 96 of 100 units, so its box is 198 pt) and the rays 300 pt. */
+.ring{position:absolute;left:-16%;top:11%;width:132%;height:132%;transform:scaleY(.15);overflow:visible;fill:none;stroke:var(--lc);stroke-width:1.7;opacity:0;transition:opacity .5s;filter:drop-shadow(0 0 5px var(--lc));pointer-events:none}
 .ring [pathLength]{stroke-dasharray:1;stroke-dashoffset:1;transition:stroke-dashoffset .45s var(--ez)}
 .ring .tick{stroke-width:9;stroke-dasharray:1.5 12.24}
 :host([data-ring]) .ring{opacity:.95}
 :host([data-ring]) .ring [pathLength]{stroke-dashoffset:0}
 :host([data-ring=fading]) .ring{opacity:0;transition-duration:.5s}
-.rays{position:absolute;left:12%;top:0;width:76%;height:76%;border-radius:50%;background:repeating-conic-gradient(color-mix(in srgb,var(--lc) 55%,transparent) 0 3deg,transparent 3deg 19deg);mask:radial-gradient(closest-side,#000 12%,#0000);opacity:0;pointer-events:none}
+.rays{position:absolute;left:-50%;top:-62%;width:200%;height:200%;border-radius:50%;background:repeating-conic-gradient(color-mix(in srgb,var(--lc) 55%,transparent) 0 3deg,transparent 3deg 19deg);mask:radial-gradient(closest-side,#000 12%,#0000);opacity:0;pointer-events:none}
 :host([data-rays]) .rays{animation:rays .75s ease-out}
 :host([data-rays=short]) .rays{animation-duration:.3s}
 :host([data-hidden]) *,:host([data-hidden]) *::before{animation-play-state:paused!important}
@@ -66,7 +66,6 @@ svg [data-pivot]{transform-box:view-box}
 @keyframes blink{46%{opacity:1}48%{opacity:0}94%{opacity:1}96.5%{opacity:0}}
 @keyframes bob{from{transform:translateY(-20px) rotate(-5deg)}to{transform:translateY(20px) rotate(5deg)}}
 @keyframes glow{to{scale:1.09}}
-@keyframes turn{to{transform:rotate(360deg)}}
 @keyframes hop{35%{transform:translateY(-60px)}}
 @keyframes reveal{0%{filter:brightness(6) saturate(0);mask-position:0 0}45%{filter:brightness(3) saturate(.4)}80%{filter:brightness(1.4);mask-position:0 100%}to{mask-position:0 100%}}
 @keyframes pop{from{scale:0;opacity:0}}

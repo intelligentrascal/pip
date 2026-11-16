@@ -89,6 +89,34 @@ export function splitReply(reply: string): Block[] {
  return blocks;
 }
 
+/** The blocks of a reply that is still arriving. A fenced part block is drawn as soon as its closing fence has arrived and the library can
+ * draw it whole; the lines of a fence still being written are held back, so the person never watches code stream past. The words keep their
+ * order, and a prefix only ever grows: each earlier block is the same on the next call, so the page can add to what it has drawn. */
+const OPEN = '```openui-lang';
+const partCache = new Map<string, Part[] | undefined>();
+export function liveBlocks(words: string): Block[] {
+ // A trailing line that could still become the opening fence is not words yet.
+ const tail = words.slice(words.lastIndexOf('\n') + 1);
+ const unfinishedOpen = tail.length > 0 && (OPEN.startsWith(tail.trimEnd()) && tail.startsWith('`') || tail.startsWith(OPEN));
+ let shown = unfinishedOpen ? words.slice(0, words.length - tail.length) : words;
+ // A fence that has opened and not closed: hold everything from its opening line.
+ const opens = [...shown.matchAll(/^```openui-lang[ \t]*\r?$/gm)], closed = [...shown.matchAll(FENCE)];
+ const lastOpen = opens.at(-1);
+ if (lastOpen && !closed.some(match => match.index === lastOpen.index)) shown = shown.slice(0, lastOpen.index);
+ const blocks: Block[] = [];
+ const words2 = (text: string) => { const trimmed = text.replace(/^\s*\n/, '').replace(/\s+$/, ''); if (trimmed) blocks.push({type: 'text', text: trimmed}); };
+ let last = 0;
+ for (const match of shown.matchAll(FENCE)) {
+  words2(shown.slice(last, match.index));
+  let parts = partCache.get(match[1]);
+  if (!partCache.has(match[1])) { parts = parseParts(match[1]); partCache.set(match[1], parts); if (partCache.size > 200) partCache.delete(partCache.keys().next().value!); }
+  if (parts) blocks.push({type: 'parts', parts}); else blocks.push({type: 'text', text: '```\n' + match[1] + '\n```'});
+  last = match.index + match[0].length;
+ }
+ words2(shown.slice(last));
+ return blocks;
+}
+
 // A finished reply is split once, however many times the state is sent; the page receives blocks it can draw, never markup to parse.
 const splits = new Map<string, Block[]>();
 export function repliesOf(works: readonly {id: string; result?: {text?: string} | null}[]): Record<string, Block[]> {

@@ -24,7 +24,7 @@ It follows the Mac's light and dark setting. Tokens and layout live in `web/lant
   missing width keeps the current one: a web view measured before it has a size must not
   shrink a fresh window, which is why a cold launch opens at 600 pt, not 420 pt.
 - See-through: a native blurred layer behind the page, with the window tinted at 92%.
-  Reduce Transparency or Increase Contrast makes the window solid. A browser preview has
+  Reduce Transparency or Increase Contrast makes the window solid; Increase Contrast also raises both line colours (the 12% and 26% borders) to the secondary text colour, solid. The host reports the preference too, for a web view that does not. A browser preview has
   no blur, only the tint.
 
 ## Parts

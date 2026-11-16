@@ -207,6 +207,7 @@
     "tests/release-sign.test.py",
     "tests/replay.test.ts",
     "tests/reply.test.ts",
+    "tests/saved-steps.test.ts",
     "tests/screen-context.test.ts",
     "tests/steer.test.ts",
     "tests/talk-path.test.ts",
@@ -216,6 +217,7 @@
     "tests/ui/chatgpt.spec.ts",
     "tests/ui/components.spec.ts",
     "tests/ui/dictation.spec.ts",
+    "tests/ui/design-fidelity.spec.ts",
     "tests/ui/lantern.spec.ts",
     "tests/ui/mac-access.spec.ts",
     "tests/ui/magic.spec.ts",
@@ -339,7 +341,7 @@
     {
       "path": "tests/ui/panel.spec.ts",
       "check": "email-shaped",
-      "sha256": "a940ae32a3a5c9a0380aae0b300aed33054e17d578073c7545f479bb49034bd3",
+      "sha256": "8850ebe058761c03d767493810c6c6c0ae842ae33757b52cdc884b1bb9eed26a",
       "reason": "Fixture booking address on a reserved .example domain; not a personal contact."
     },
     {

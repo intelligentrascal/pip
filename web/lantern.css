@@ -11,6 +11,9 @@
  --ac:#bd7f18;--ai:#7d5108;--ok:#3d6a38;--wa:#a04e17;--da:#b03a2c;--in:#2e5e92}}
 :root[data-appearance=dark]{color-scheme:dark;--bg:#171411;--ra:#221e19;--su:#0f0d0b;--ho:#2c2721;--bu:#2c2721;--tx:#f5f0e7;--t2:#bfb6a7;--t3:#aaa193;--ac:#f3b758;--ai:#f3b758;--ok:#aec48d;--wa:#ec9a62;--da:#f28f80;--in:#93b7dc}
 :root[data-appearance=light]{color-scheme:light;--bg:#faf7f1;--ra:#ffffff;--su:#f0ebe1;--ho:#e9e3d7;--bu:#ece6da;--tx:#1e1a14;--t2:#5a5346;--t3:#6b6355;--ac:#bd7f18;--ai:#7d5108;--ok:#3d6a38;--wa:#a04e17;--da:#b03a2c;--in:#2e5e92}
+/* Increase Contrast: the window and both line colours become the secondary text colour, solid, so every border meets the text's own contrast. */
+@media (prefers-contrast:more){:root{--ln:var(--t2);--l2:var(--t2)}}
+body.contrast{--ln:var(--t2);--l2:var(--t2)}
 *{box-sizing:border-box}
 html,body{height:100%;margin:0;overflow:hidden;background:transparent;color:var(--tx);font:14px/1.53 -apple-system,BlinkMacSystemFont,system-ui,sans-serif}
 button,input,textarea,select{font:inherit;color:inherit}
@@ -23,7 +26,7 @@ button{cursor:pointer;background:none;border:0;padding:0}
  background:color-mix(in srgb,var(--bg) 92%,transparent);border:1px solid var(--ln);box-shadow:0 30px 70px #0009,0 3px 10px #0005;overflow:hidden;isolation:isolate;
  transform-origin:100% 100%;transition:opacity var(--dm) var(--ez),transform var(--dm) var(--ez),height var(--dm) var(--ez)}
 :root[data-appearance=light] #win,body.light-mode #win{box-shadow:0 30px 70px #0003,0 3px 10px #0002}
-body.solid #win{background:var(--bg)}
+body.solid #win,body.contrast #win{background:var(--bg)}
 /* In the app the panel's own shadow follows the window's shape; a page shadow would be cut off at the panel's edge. */
 body.native #win{box-shadow:none}
 @media (prefers-reduced-transparency:reduce),(prefers-contrast:more){#win{background:var(--bg)}}
@@ -88,6 +91,7 @@ table{border-collapse:collapse;font:13px/19px -apple-system,system-ui,sans-serif
 th,td{text-align:left;padding:4px 14px 4px 0;border-bottom:1px solid var(--ln);white-space:nowrap}
 th{font-weight:600;color:var(--t2)}tr:last-child td{border-bottom:0}
 .w{animation:fade var(--df) ease-out}
+.lv-body{display:flex;flex-direction:column;gap:10px}.live-words{white-space:pre-wrap;overflow-wrap:anywhere}
 @keyframes fade{from{opacity:0}}
 .ar{animation:rise var(--dm) var(--ez)}
 @keyframes rise{from{opacity:0;transform:translateY(6px)}}
@@ -142,11 +146,13 @@ th{font-weight:600;color:var(--t2)}tr:last-child td{border-bottom:0}
 .pb b{font-weight:600}.pb p{margin:0;color:var(--t2);font-size:13px}.pb .bt{margin-top:6px}
 .nc{color:var(--t2);font-size:13px}
 /* Paused step: a panel above the message box, so its two buttons never scroll away. */
-#dock{flex:none;margin:0 12px 2px;padding:10px 12px 11px 14px;display:grid;grid-template-columns:1fr auto;gap:2px 14px;align-items:center;border:1px solid color-mix(in srgb,var(--wa) 55%,transparent);
+#dock{flex:none;margin:0 12px 2px;padding:9px 12px 10px 14px;display:grid;grid-template-columns:1fr auto;gap:0 14px;align-items:center;border:1px solid color-mix(in srgb,var(--wa) 55%,transparent);
  background:color-mix(in srgb,var(--wa) 9%,var(--ra));border-radius:5px;font:13px/18px -apple-system,system-ui,sans-serif}
-#dock .ph{grid-column:1/-1;color:var(--wa);margin-bottom:3px}#dock .ph span{color:var(--t2)}
-#dock p{margin:0;color:var(--t2)}#dock .rw{align-self:start;flex-wrap:nowrap}.dq{min-width:0}
-#dock pre{margin:6px 0 0;max-height:54px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;font:12px/17px var(--fm);color:var(--t2);background:var(--su);border-radius:3px;padding:4px 8px}
+#dock .ph{grid-column:1/-1;color:var(--wa);margin-bottom:2px}#dock .ph span{color:var(--t2)}
+#dock .dq{grid-column:1;min-width:0}#dock .rw{grid-column:2;align-self:center;flex-wrap:nowrap}
+#dock h4{font:600 14px/20px -apple-system,system-ui,sans-serif;margin:0}
+#dock p{margin:0;color:var(--t2)}
+#dock pre{margin:3px 0 0;max-height:68px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;font:12px/17px var(--fm);color:var(--t2)}
 #dock.sw{animation:swell-w .9s ease-out}
 @keyframes swell-w{from{border-color:var(--wa);box-shadow:0 0 0 1px var(--wa),0 0 20px color-mix(in srgb,var(--wa) 55%,transparent)}}
 #resume{flex:none;margin:8px 12px 0;padding:0 8px;height:30px;display:flex;align-items:center;gap:8px;color:var(--t2);font:13px/1 -apple-system,system-ui,sans-serif;border-radius:4px;text-align:left}
@@ -158,7 +164,7 @@ th{font-weight:600;color:var(--t2)}tr:last-child td{border-bottom:0}
 #latest{position:relative;flex:none;align-self:center;height:26px;margin:-30px 0 4px;padding:0 12px;border-radius:13px;background:var(--ra);border:1px solid var(--l2);color:var(--tx);font:12.5px/1 -apple-system,system-ui,sans-serif;display:flex;align-items:center;gap:6px;z-index:2}
 /* Message box: always 30 pt above the window's bottom edge. */
 #ask{flex:none;margin:8px 12px 6px;display:flex;align-items:flex-end;gap:4px;min-height:46px;padding:6px 6px 6px 14px;background:var(--ra);border:1px solid var(--l2);border-radius:5px}
-#composer{flex:1;min-width:0;background:none;border:0;padding:5px 0;resize:none;min-height:24px;max-height:114px;line-height:1.53;color:var(--tx);overflow-y:auto}
+#composer{flex:1;min-width:0;background:none;border:0;padding:5px 0;resize:none;min-height:24px;max-height:calc(6 * 1.53em + 10px);line-height:1.53;color:var(--tx);overflow-y:auto}
 #composer::placeholder{color:var(--t3);opacity:1}#composer:focus-visible{outline:0}
 #ask:focus-within{border-color:color-mix(in srgb,var(--ac) 70%,var(--l2))}
 #ask .ib,#send{margin-bottom:0}

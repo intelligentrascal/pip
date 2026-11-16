@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { splitReply, parseParts } from '../runtime/reply.js';
+import { splitReply, parseParts, liveBlocks } from '../runtime/reply.js';
 import { PART_KINDS, PARTS_INSTRUCTIONS } from '../runtime/parts.js';
 
 // Intent: the captain chose "the ten part kinds, drawn through OpenUI's library, no hand-written parts" for Pip's answers (ELF-65, ELF-60).
@@ -51,4 +51,29 @@ test('links and pictures are limited to what is safe to draw', () => {
  assert.deepEqual(sources.items.map((item: any) => item.url), ['https://example.com/a', undefined, undefined, undefined]);
  assert.deepEqual(pictures.items.map((item: any) => item.src), [undefined, undefined]);
  assert.deepEqual(table.rows, [['1', '', ''], ['1', '2', '3']], 'every row is as wide as its columns');
+});
+
+// Intent: ELF-65's agreed design draws parts while the reply arrives (ELF-73, gap 2: valid parts stayed as raw notation until the work ended).
+// Fixture: the same ten-kind reply, cut at every length the way a model's words arrive.
+test('while a reply arrives its parts appear as soon as their block closes, and no notation is ever shown', () => {
+ const whole = splitReply(reply);
+ const fenceStart = reply.indexOf('```openui-lang'), fenceEnd = reply.indexOf('```', fenceStart + 3) + 3;
+ let previous = liveBlocks('');
+ for (let length = 0; length <= reply.length; length += 7) {
+  const blocks = liveBlocks(reply.slice(0, length));
+  const text = blocks.filter(b => b.type === 'text').map(b => (b as { text: string }).text).join('\n');
+  assert.doesNotMatch(text, /openui-lang|root = Parts/, `no raw notation at ${length} characters`);
+  const drawn = blocks.filter(b => b.type === 'parts').length;
+  assert.equal(drawn, length >= fenceEnd ? 1 : 0, `the parts are drawn once their block has closed, not before (${length})`);
+  // Earlier blocks never change, so the page can keep what it already drew.
+  previous.slice(0, -1).forEach((block, i) => assert.deepEqual(blocks[i], block));
+  previous = blocks;
+ }
+ assert.deepEqual(liveBlocks(reply), whole, 'a finished reply gives the same blocks as the final split');
+});
+
+test('an ordinary code fence streams as words, and a part block the library cannot draw is shown as the code it is', () => {
+ assert.deepEqual(liveBlocks('Run:\n\n```sh\nls\n'), [{ type: 'text', text: 'Run:\n\n```sh\nls' }]);
+ assert.deepEqual(liveBlocks('Before.\n\n```openui-lang\nroot = Parts([Plan(\n```\n').map(b => b.type), ['text', 'text']);
+ assert.deepEqual(liveBlocks('Before.\n\n``'), [{ type: 'text', text: 'Before.' }], 'the start of a fence line is held back');
 });

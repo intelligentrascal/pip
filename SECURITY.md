@@ -1,6 +1,6 @@
 # Security policy
 
-Pip is experimental. The only release is the 0.1.0-alpha.1 alpha; there is no stable release or guaranteed response time yet.
+Pip is experimental. The newest release is the 0.1.0-alpha.2 alpha; there is no stable release or guaranteed response time yet.
 Security fixes target the current source version and the newest alpha; do not assume older snapshots are
 supported. The released app is signed with a Developer ID and notarized by Apple. The developer build is unsigned.
 

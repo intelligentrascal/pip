@@ -1,6 +1,7 @@
 import {test,expect,type Page} from '@playwright/test';
 import {composer,openMore} from '../helpers/chat-page.js';
 import {openApp} from '../helpers/app-page.js';
+import {initialState} from '../../runtime/domain.js';
 
 test.use({viewport:{width:756,height:560}});
 
@@ -54,7 +55,8 @@ test('the full arrival ends within 1.5 s and the short one within 0.3 s',async({
  const full=await play(page,'rich','m.summon({short:false});',2000);
  expect(full.lastActive).toBeLessThanOrEqual(1500);expect(full.lastActive).toBeGreaterThan(1000);
  const short=await play(page,'rich','m.summon({short:true});',800);
- expect(short.lastActive).toBeLessThanOrEqual(300);expect(short.lastActive).toBeGreaterThan(100);
+ expect(short.lastActive).toBeLessThanOrEqual(300+17); // the effect ends at 290 ms; sampling is per frame, so one frame (17 ms) of slack
+ expect(short.lastActive).toBeGreaterThan(100);
 });
 
 test('Rich dims the desktop until the flash of a full arrival; Calm and Balanced do not',async({page})=>{
@@ -99,4 +101,100 @@ test('hiding gathers embers into the lantern first: 0.45 s, 0.16 s in Calm, at o
   const took=Date.now()-asked;expect(took,level).toBeGreaterThanOrEqual(low);expect(took,level).toBeLessThanOrEqual(high);
   await app.receive({kind:'popupHidden',payload:{}});await app.receive({kind:'summon',payload:{}});
  }
+});
+
+// Intent (ELF-73, from ELF-65's agreed design): a finished step sends embers, the border lights as they arrive, Calm clears everything Balanced drew,
+// and the circle and rays have the agreed size. Fixture: Pip's real page, its own effects class and the host's live messages.
+const liveStep=(state:'running'|'done')=>({kind:'live',payload:{running:true,startedAt:Date.now()-3000,turns:1,steps:[{id:'s1',label:'Read the calendar',state,startedAt:Date.now()-3000,milliseconds:state==='done'?1200:undefined}],words:'',blocks:[],limits:{turns:24,milliseconds:600000},now:Date.now()}});
+const workingState=async(app:Awaited<ReturnType<typeof openApp>>)=>{
+ const work={id:'w1',request:'Plan my Friday.',status:'Working',result:null,error:'',taskId:1,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),threadId:'c1',sessionId:'s',usage:{attempts:1,activeMilliseconds:0}};
+ await app.receive({kind:'state',payload:{state:{...initialState(),works:[work]},workViews:[],replies:{}}});await app.receive({kind:'summon',payload:{}});
+};
+
+test('a finished step sends embers once, at Balanced and Rich, and none at Calm',async({page})=>{
+ const app=await openApp(page);await workingState(app);
+ for(const [level,steps] of [['balanced',1],['rich',1],['calm',0]] as [string,number][]){
+  await app.receive({kind:'nativeStatus',payload:{hotkey:'⌘⇧E',visibleHeight:800,magic:level}});
+  await page.evaluate(()=>{(window as any).__embers=0;const proto=(window as any).PipMagic.prototype;if(!proto.__wrapped){const original=proto.burst;proto.burst=function(...a:any[]){(window as any).__embers++;return original.apply(this,a);};proto.__wrapped=true;}});
+  await app.receive(liveStep('running'));await app.receive(liveStep('done'));await page.waitForTimeout(150);
+  const bursts=await page.evaluate(()=>(window as any).__embers);
+  if(steps)expect(bursts,level).toBeGreaterThan(0);else expect(bursts,level).toBe(0);
+ }
+});
+
+test('a part border lights about 480 ms after launch, as the embers arrive, and never at Calm or under Reduce Motion',async({page})=>{
+ await openApp(page);
+ const lit=(level:string,reduced:boolean)=>page.evaluate(async({level,reduced})=>{
+  const w=window as any,el=document.createElement('div');el.className='pl';document.querySelector('#win')!.append(el);
+  const m=new w.PipMagic({canvas:document.querySelector('#fx'),character:document.querySelector('pip-character'),win:document.querySelector('#win'),emit(){},reduced:()=>reduced});
+  m.setLevel(level);m.summon({short:true});await new Promise(r=>setTimeout(r,350));
+  const start=performance.now();m.part(el);let at=-1;
+  await new Promise<void>(done=>{const tick=()=>{const t=performance.now()-start;if(el.classList.contains('sw')&&at<0)at=t;if(t<900)requestAnimationFrame(tick);else done();};tick();});
+  m.halt();el.remove();return at;
+ },{level,reduced});
+ const balanced=await lit('balanced',false);expect(balanced).toBeGreaterThan(420);expect(balanced).toBeLessThan(620);
+ expect(await lit('calm',false)).toBe(-1);expect(await lit('balanced',true)).toBe(-1);
+});
+
+test('switching to Calm clears the paused circle, the embers and a border about to light',async({page})=>{
+ await openApp(page);
+ const result=await page.evaluate(async()=>{
+  const w=window as any,c=document.querySelector<any>('pip-character'),el=document.createElement('div');el.className='pl';document.querySelector('#win')!.append(el);
+  const m=new w.PipMagic({canvas:document.querySelector('#fx'),character:c,win:document.querySelector('#win'),emit(){},reduced:()=>false});
+  m.setLevel('balanced');m.summon({short:true});await new Promise(r=>setTimeout(r,350));
+  m.pause(el,document.querySelector('#win'));const ringWas=c.hasAttribute('data-ring');
+  m.setLevel('calm');await new Promise(r=>setTimeout(r,700));
+  const out={ringWas,ring:c.hasAttribute('data-ring'),lit:el.classList.contains('sw'),canvas:!document.querySelector<HTMLCanvasElement>('#fx')!.hidden};m.halt();el.remove();return out;
+ });
+ expect(result).toEqual({ringWas:true,ring:false,lit:false,canvas:false});
+});
+
+test('the circle of light is 190 pt across and the rays 300 pt, centred under Pip',async({page})=>{
+ await openApp(page);
+ const sizes=await page.evaluate(()=>{
+  const c=document.querySelector<any>('pip-character'),root=c.shadowRoot,box=c.getBoundingClientRect();
+  c.ring(true);c.setAttribute('data-rays','');const ring=root.querySelector('.ring').getBoundingClientRect(),rays=root.querySelector('.rays');
+  return {box:box.width,ringWidth:ring.width,rays:rays.offsetWidth};
+ });
+ expect(sizes.ringWidth/sizes.box).toBeCloseTo(1.32,1);expect(sizes.rays/sizes.box).toBeCloseTo(2,1);
+});
+
+// Intent: the captain's five settled design choices (ELF-79): the paused circle is drawn once in 0.45 s and then held still; the problem lantern is dim red
+// matching the window's problem light; Pip follows a moving pointer while paused and faces the person after 2.5 s of rest; the flash is 150 pt / 70 pt in radius.
+test('the paused circle is drawn once in 0.45 s and never turns, and the problem lantern is the window\'s problem red in dark and light',async({page})=>{
+ await openApp(page);await page.emulateMedia({colorScheme:'dark'});
+ const readings=await page.evaluate(()=>{
+  const c=document.querySelector<any>('pip-character'),ring=c.shadowRoot.querySelector('.ring');c.ring(true);
+  const turning=getComputedStyle(ring.querySelector('g')).animationName,draw=getComputedStyle(ring.querySelector('[pathLength]')).transitionDuration;c.ring(false);
+  c.showState('blocked');return {turning,draw,lantern:getComputedStyle(c).getPropertyValue('--lc').trim(),window:getComputedStyle(document.documentElement).getPropertyValue('--da').trim()};
+ });
+ expect(readings.turning).toBe('none');expect(readings.draw).toBe('0.45s');
+ expect(readings.lantern).toBe(readings.window);expect(readings.lantern.toLowerCase()).toBe('#f28f80');
+ await page.emulateMedia({colorScheme:'light'});
+ const light=await page.evaluate(()=>({lantern:getComputedStyle(document.querySelector('pip-character')!).getPropertyValue('--lc').trim(),window:getComputedStyle(document.documentElement).getPropertyValue('--da').trim()}));
+ expect(light.lantern).toBe(light.window);expect(light.lantern.toLowerCase()).toBe('#b03a2c');
+ // A problem draws neither embers nor the circle.
+ const problem=await page.evaluate(()=>{const c=document.querySelector<any>('pip-character');c.showState('blocked');return c.hasAttribute('data-ring');});
+ expect(problem).toBe(false);
+});
+
+test('while paused Pip follows a pointer that is moving, then faces the person after 2.5 s without movement',async({page})=>{
+ await openApp(page);
+ const aim=await page.evaluate(()=>{
+  const c=document.querySelector<any>('pip-character');c.showState('approval');c.setFocus(()=>null);
+  const box=c.getBoundingClientRect();c.pointer(box.left-300,box.top+20);const t=performance.now();
+  const moving=c.aim(t+100),rested=c.aim(t+2600);return {moving,rested};
+ });
+ expect(Math.abs(aim.moving[0])+Math.abs(aim.moving[1])).toBeGreaterThan(.1);
+ expect(aim.rested).toEqual([0,0]);
+});
+
+test('the flash is 150 pt in radius for a full arrival and 70 pt for a quick one',async({page})=>{
+ await openApp(page);
+ const radii=await page.evaluate(async()=>{
+  const w=window as any,seen:number[]=[],m=new w.PipMagic({canvas:document.querySelector('#fx'),character:document.querySelector('pip-character'),win:document.querySelector('#win'),emit(){},reduced:()=>false});
+  m.setLevel('balanced');const original=m.glow.bind(m);m.glow=(c:any,r:number,ms:number)=>{seen.push(r);return original(c,r,ms);};
+  m.summon({short:false});await new Promise(r=>setTimeout(r,700));m.summon({short:true});await new Promise(r=>setTimeout(r,100));m.halt();return seen;
+ });
+ expect(radii).toEqual([150,70]);
 });

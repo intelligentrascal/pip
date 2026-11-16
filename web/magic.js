@@ -14,8 +14,9 @@ export class Magic {
  setLevel(level){
   if(!LEVELS.includes(level)||level===this.level)return;
   this.level=level;
-  if(level==='calm')this.stop();
-  else this.working(this.workingOn);
+  // Calm draws nothing: what Balanced had on screen (embers, the paused circle, a bloom, the dimmed desktop, a border about to light) goes at once.
+  if(level==='calm'){this.halt();for(const el of document.querySelectorAll('.sw'))el.classList.remove('sw');}
+  else{this.working(this.workingOn);if(this.paused&&this.on)this.character.ring(true);}
  }
  get on(){return this.level!=='calm'&&!this.isReduced()&&!this.character.suspended&&this.character.offsetWidth>0;}
  get rich(){return this.level==='rich';}
@@ -119,14 +120,16 @@ export class Magic {
  // Working: scrolls circle (the character does that); embers rise from the lantern at 11 a second, 22 in rich.
  working(on){this.workingOn=on;if(on)this.wake();}
  step(){if(this.on)this.burst(this.at('flame'),4,46,700,1.7,-30,26);}
+ // The border lights about 480 ms after the embers set out, as they arrive; at Calm, under Reduce Motion or while hidden it never lights.
+ lightBorder(el){this.later(()=>{if(!this.on||!el.isConnected)return;el.classList.remove('sw');void el.offsetWidth;el.classList.add('sw');},480);}
  // A part arrives: embers fly from the lantern to the window's edge beside it. Rich sends 14 across the window and dusts gold from its top edge.
  part(el){
   if(!el)return;
-  el.classList.remove('sw');void el.offsetWidth;el.classList.add('sw');
   if(!this.on)return;
   const w=this.win.getBoundingClientRect(),e=el.getBoundingClientRect(),rich=this.rich;
   const x=rich?e.left+14:w.right+4,y=Math.max(w.top+16,Math.min(w.bottom-16,e.top+e.height/2));
   this.home(this.at('flame'),()=>[x+R(-3,3),y+R(-12,12)],rich?14:6,460,160,1.8);
+  this.lightBorder(el);
   if(rich)this.later(()=>{for(let i=0;i<16;i++)this.add({x:e.left+R(0,e.width),y:e.top+R(-2,6),vx:R(-8,8),vy:R(4,26),l:R(500,1000),z:R(1,1.8),g:30});},480);
  }
  // Paused: a copper circle that stays, one scroll held out, embers to the panel in copper.
@@ -135,7 +138,7 @@ export class Magic {
   if(!on){if(c.hasAttribute('data-ring'))c.ring(false);return;}
   if(!this.on)return;
   c.ring(true);
-  if(panel){const e=panel.getBoundingClientRect(),w=this.win.getBoundingClientRect();this.home(this.at('flame'),()=>[w.right+4+R(-3,3),Math.max(w.top+16,Math.min(w.bottom-16,e.top+e.height/2))+R(-12,12)],this.rich?14:6,460,160,1.8);}
+  if(panel){const e=panel.getBoundingClientRect(),w=this.win.getBoundingClientRect();this.home(this.at('flame'),()=>[w.right+4+R(-3,3),Math.max(w.top+16,Math.min(w.bottom-16,e.top+e.height/2))+R(-12,12)],this.rich?14:6,460,160,1.8);this.lightBorder(panel);}
  }
  // Yes: the held scroll flies away, Pip hops, embers burst from the lantern and fall.
  yes(){

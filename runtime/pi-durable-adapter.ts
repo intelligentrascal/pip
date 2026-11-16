@@ -12,6 +12,7 @@ import { openNodeSqliteDatabase } from '@earendil-works/pi-durable/storage/sqlit
 import { SqliteStorage } from '@earendil-works/pi-durable/storage/sqlite';
 import { initialState, propose, approve, recover, text, validateAction, currentSchema, type State, type Proposal, type Action, type Work, type Result } from './domain.js';
 import { resolvePublic } from './public-web.js';
+import { idle, replay, type Live } from './live.js';
 import { ProviderError, providerFailure, type Engine, type ModelChoice } from './providers.js';
 import { pipTools, backendTools, type ActiveRun } from './pip-tools.js';
 import { AUTOMATION_SERVERS, macTools, type MacToolsOptions } from './mac-tools.js';
@@ -140,7 +141,9 @@ export async function openHost(options: HostOptions) {
  // Every event of the one conversation, one batch per commit: the page draws the chat from these.
  const stream=await watchEvents(harness,root.id,context);
  options.events?.({snapshot:stream.snapshot});
- stream.start(async events=>{if(!closing)options.events?.({events});});
+ // The steps of the run in flight, reduced from the same events the page draws; each work keeps its own when it ends.
+ let trace:Live=idle();
+ stream.start(async events=>{if(closing)return;trace=replay(events as never,Date.now,trace);options.events?.({events});});
  const previousState=await harness.snapshot(PipState,context);
  let migrationBackup:string|undefined;
  if(previousState&&previousState.schema>=1&&previousState.schema<currentSchema){
@@ -174,6 +177,7 @@ export async function openHost(options: HostOptions) {
  };
  // One ask at a time reaches the conversation; later asks wait in order and are admitted immediately.
  let pumping=false,running:Promise<void>|undefined,stopped=0,closed:Promise<void>|undefined;
+ const keepSteps=(w:Work)=>{const steps=trace.steps.map(step=>({label:step.label,state:step.state==='failed'?'failed' as const:'done' as const,...(step.milliseconds===undefined?{}:{milliseconds:step.milliseconds})}));if(steps.length)w.steps=steps;};
  const finish=async(tx:{doc:(d:typeof PipState)=>Promise<State>},id:string,change:(w:Work)=>void)=>{const w=(await tx.doc(PipState)).works.find(w=>w.id===id);if(w)change(w);};
  async function runWork(id:string) {
   const epoch=stopped,started=Date.now();
@@ -188,7 +192,7 @@ export async function openHost(options: HostOptions) {
   const snap=await snapshot();
   const work=snap.works.find(w=>w.id===id);
   if(!work) throw new Error('Work is missing');
-  const interrupted=async(note:string,error:string,screen:boolean)=>{await harness.commit(tx=>finish(tx,id,w=>{recordWorkStatus(w,'Interrupted',note);if(screen)w.needsScreenContext=true;w.error=error;}),context);options.changed?.();};
+  const interrupted=async(note:string,error:string,screen:boolean)=>{await harness.commit(tx=>finish(tx,id,w=>{keepSteps(w);recordWorkStatus(w,'Interrupted',note);if(screen)w.needsScreenContext=true;w.error=error;}),context);options.changed?.();};
   const browser=options.browser?.(work.id);
   if(work.browserRequired&&!browser){await interrupted('The isolated browser grant expired.','The task browser expired. Start a new browser task and review its pages again.',false);return;}
   const screen=work.screenContext?screenContexts.take(work.id):undefined;
@@ -207,15 +211,15 @@ export async function openHost(options: HostOptions) {
    if(result.proposal?.type==='memory.save')result.proposal.source=work.request;
    await harness.commit(async tx=>{
     const s=await tx.doc(PipState); const w=s.works.find(w=>w.id===id)!;
-    w.usage!.activeMilliseconds+=Date.now()-started;
+    w.usage!.activeMilliseconds+=Date.now()-started;keepSteps(w);
     recordWorkStatus(w,'Done','Provider output returned; goal verification is separate.'); w.result=result; w.completion='review';
     if(result.proposal) propose(s,result.proposal).workId=w.id;
    },context);
   } catch(error) {
    if(closing)return;
-   if(epoch!==stopped){await harness.commit(tx=>finish(tx,id,w=>{w.usage!.activeMilliseconds+=Date.now()-started;recordWorkStatus(w,'Stopped','Stop prevented further worker steps; issued actions were not undone.');}),context);}
+   if(epoch!==stopped){await harness.commit(tx=>finish(tx,id,w=>{w.usage!.activeMilliseconds+=Date.now()-started;keepSteps(w);recordWorkStatus(w,'Stopped','Stop prevented further worker steps; issued actions were not undone.');}),context);}
    else await harness.commit(tx=>finish(tx,id,w=>{
-    w.usage!.activeMilliseconds+=Date.now()-started;const code=(error as {code?:string})?.code;
+    w.usage!.activeMilliseconds+=Date.now()-started;keepSteps(w);const code=(error as {code?:string})?.code;
     if(code==='provider-cutoff'||code==='no-progress'||code==='context-changed')w.pauseReason=code;
     recordWorkStatus(w,w.pauseReason==='provider-cutoff'||w.pauseReason==='no-progress'||w.pauseReason==='context-changed'?'Interrupted':'Could not finish','The worker could not finish this request; no automatic retry.');
     w.error=code==='context-changed'?'Project context changed. Review its current summary before continuing.':error instanceof Error&&(error as {safe?:boolean}).safe===true?error.message:'This request could not finish. Your input is saved; no action was taken.';
