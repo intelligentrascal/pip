@@ -11,7 +11,7 @@
     "start": "python3 scripts/launch.py"
   },
   "dependencies": {
-    "@earendil-works/chord": "1.4.0",
+    "@earendil-works/chord": "1.5.2",
     "@earendil-works/pi-ai": "1.4.0",
     "@earendil-works/pi-durable": "1.4.0",
     "@openuidev/lang-core": "1.1.1",
